@@ -1,0 +1,204 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <model name="underwater_gate">
+    <static>true</static>
+    <pose>0 0 0 0 0 0</pose>
+
+    <!-- Left Vertical Post -->
+    <link name="left_post">
+      <pose>0 -0.4 0 0 0 0</pose>
+      <collision name="left_post_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>1.0</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="left_post_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>1.0</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.95 0.95 0.9 1</ambient>
+          <diffuse>0.95 0.95 0.9 1</diffuse>
+          <specular>0.3 0.3 0.3 1</specular>
+        </material>
+      </visual>
+      <inertial>
+        <mass>5.0</mass>
+        <inertia>
+          <ixx>0.42</ixx>
+          <iyy>0.42</iyy>
+          <izz>0.008</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Right Vertical Post -->
+    <link name="right_post">
+      <pose>0 0.4 0 0 0 0</pose>
+      <collision name="right_post_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>1.0</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="right_post_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>1.0</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.95 0.95 0.9 1</ambient>
+          <diffuse>0.95 0.95 0.9 1</diffuse>
+          <specular>0.3 0.3 0.3 1</specular>
+        </material>
+      </visual>
+      <inertial>
+        <mass>5.0</mass>
+        <inertia>
+          <ixx>0.42</ixx>
+          <iyy>0.42</iyy>
+          <izz>0.008</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Top Horizontal Bar -->
+    <link name="top_bar">
+      <pose>0 0 0.5 0 1.5708 0</pose>
+      <collision name="top_bar_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.88</length>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name="top_bar_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.88</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.95 0.95 0.9 1</ambient>
+          <diffuse>0.95 0.95 0.9 1</diffuse>
+          <specular>0.3 0.3 0.3 1</specular>
+        </material>
+      </visual>
+      <inertial>
+        <mass>3.0</mass>
+        <inertia>
+          <ixx>0.02</ixx>
+          <iyy>0.195</iyy>
+          <izz>0.195</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Base Weights for Stability -->
+    <link name="left_base">
+      <pose>0 -0.4 -0.55 0 0 0</pose>
+      <collision name="left_base_collision">
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.1</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="left_base_visual">
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.1</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+          <diffuse>0.6 0.6 0.6 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
+        </material>
+      </visual>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.041</ixx>
+          <iyy>0.041</iyy>
+          <izz>0.0375</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <link name="right_base">
+      <pose>0 0.4 -0.55 0 0 0</pose>
+      <collision name="right_base_collision">
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.1</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="right_base_visual">
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.1</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+          <diffuse>0.6 0.6 0.6 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
+        </material>
+      </visual>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.041</ixx>
+          <iyy>0.041</iyy>
+          <izz>0.0375</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <!-- Joints -->
+    <joint name="left_post_to_base" type="fixed">
+      <parent>left_base</parent>
+      <child>left_post</child>
+    </joint>
+
+    <joint name="right_post_to_base" type="fixed">
+      <parent>right_base</parent>
+      <child>right_post</child>
+    </joint>
+
+    <joint name="top_bar_to_left" type="fixed">
+      <parent>left_post</parent>
+      <child>top_bar</child>
+    </joint>
+
+  </model>
+</sdf>
