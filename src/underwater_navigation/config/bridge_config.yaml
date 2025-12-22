@@ -1,74 +1,100 @@
 # ROS-Gazebo Bridge Configuration
-# This bridges Gazebo topics to ROS2 topics
+# Robot name: orca4_ign
 
-- ros_topic_name: "/orca4/front_left/image_raw"
-  gz_topic_name: "/orca4/front_left/image_raw"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
+# Clock synchronization
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "ignition.msgs.Clock"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/orca4/front_right/image_raw"
-  gz_topic_name: "/orca4/front_right/image_raw"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "/orca4/bottom/image_raw"
-  gz_topic_name: "/orca4/bottom/image_raw"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "/orca4/back/image_raw"
-  gz_topic_name: "/orca4/back/image_raw"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "/orca4/imu"
-  gz_topic_name: "/orca4/imu"
+# IMU sensor data
+- ros_topic_name: "/orca4_ign/imu"
+  gz_topic_name: "/orca4_ign/imu"
   ros_type_name: "sensor_msgs/msg/Imu"
-  gz_type_name: "gz.msgs.IMU"
+  gz_type_name: "ignition.msgs.IMU"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/orca4/odom"
-  gz_topic_name: "/orca4/odom"
+# Odometry data (position and velocity feedback)
+- ros_topic_name: "/orca4_ign/odom"
+  gz_topic_name: "/model/orca4_ign/odometry"
   ros_type_name: "nav_msgs/msg/Odometry"
-  gz_type_name: "gz.msgs.Odometry"
+  gz_type_name: "ignition.msgs.Odometry"
   direction: GZ_TO_ROS
 
-- ros_topic_name: "/orca4/thruster1/cmd"
-  gz_topic_name: "/orca4/thruster1/cmd"
+# Front Left Camera
+- ros_topic_name: "/orca4_ign/front_left/image_raw"
+  gz_topic_name: "/orca4_ign/front_left/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "ignition.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/orca4_ign/front_left/camera_info"
+  gz_topic_name: "/orca4_ign/front_left/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "ignition.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Front Right Camera
+- ros_topic_name: "/orca4_ign/front_right/image_raw"
+  gz_topic_name: "/orca4_ign/front_right/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "ignition.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/orca4_ign/front_right/camera_info"
+  gz_topic_name: "/orca4_ign/front_right/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "ignition.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Bottom Camera
+- ros_topic_name: "/orca4_ign/bottom/image_raw"
+  gz_topic_name: "/orca4_ign/bottom/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "ignition.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Back Camera
+- ros_topic_name: "/orca4_ign/back/image_raw"
+  gz_topic_name: "/orca4_ign/back/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "ignition.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Thruster Commands (ROS -> Gazebo)
+- ros_topic_name: "/orca4_ign/thruster1/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster1_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/orca4/thruster2/cmd"
-  gz_topic_name: "/orca4/thruster2/cmd"
+- ros_topic_name: "/orca4_ign/thruster2/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster2_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/orca4/thruster3/cmd"
-  gz_topic_name: "/orca4/thruster3/cmd"
+- ros_topic_name: "/orca4_ign/thruster3/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster3_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/orca4/thruster4/cmd"
-  gz_topic_name: "/orca4/thruster4/cmd"
+- ros_topic_name: "/orca4_ign/thruster4/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster4_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/orca4/thruster5/cmd"
-  gz_topic_name: "/orca4/thruster5/cmd"
+- ros_topic_name: "/orca4_ign/thruster5/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster5_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/orca4/thruster6/cmd"
-  gz_topic_name: "/orca4/thruster6/cmd"
+- ros_topic_name: "/orca4_ign/thruster6/cmd"
+  gz_topic_name: "/model/orca4_ign/joint/thruster6_joint/cmd_pos"
   ros_type_name: "std_msgs/msg/Float64"
-  gz_type_name: "gz.msgs.Double"
+  gz_type_name: "ignition.msgs.Double"
   direction: ROS_TO_GZ
