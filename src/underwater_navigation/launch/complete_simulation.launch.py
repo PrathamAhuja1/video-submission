@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-Autonomous Underwater Navigation Launch File
-Complete autonomous system with gate detection and navigation
-Robot spawns at X=-2.0m and navigates through gate at X=-0.5m
+Complete Underwater Navigation Simulation Launch File
+Spawns robot at starting position with gate 1.5m ahead
+FIXED VERSION - Compatible with modern Gazebo
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, TimerAction, DeclareLaunchArgument
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration
+from launch.substitutions import Command, LaunchConfiguration
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 import launch_ros.descriptions
 
@@ -21,53 +22,54 @@ def generate_launch_description():
     # PATHS
     # ========================================================================
     urdf_file = os.path.join(pkg_share, 'urdf', 'orca4_description.urdf')
-    world_file = os.path.join(pkg_share, 'worlds', 'underwater_pool_updated.sdf')
+    world_file = os.path.join(pkg_share, 'worlds', 'underwater_pool.sdf')
     bridge_config = os.path.join(pkg_share, 'config', 'bridge_config.yaml')
     
     # ========================================================================
     # GAZEBO ENVIRONMENT SETUP
     # ========================================================================
     gz_models_path = os.path.join(pkg_share, "models")
-    gz_resource_path = os.environ.get("GZ_SIM_RESOURCE_PATH", default="")
+    gz_resource_path = os.environ.get("GZ_SIM_RESOURCE_PATH", "")
+    
+    # Updated environment variables for both Ignition and Gazebo compatibility
     gz_env = {
         'GZ_SIM_SYSTEM_PLUGIN_PATH':
-           ':'.join([os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', default=''),
-                     os.environ.get('LD_LIBRARY_PATH', default='')]),
+           ':'.join([os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', ''),
+                     os.environ.get('LD_LIBRARY_PATH', '')]),
         'IGN_GAZEBO_SYSTEM_PLUGIN_PATH':  
-           ':'.join([os.environ.get('IGN_GAZEBO_SYSTEM_PLUGIN_PATH', default=''),
-                     os.environ.get('LD_LIBRARY_PATH', default='')]),
+           ':'.join([os.environ.get('IGN_GAZEBO_SYSTEM_PLUGIN_PATH', ''),
+                     os.environ.get('LD_LIBRARY_PATH', '')]),
         'GZ_SIM_RESOURCE_PATH':
+           ':'.join([gz_resource_path, gz_models_path]),
+        'IGN_GAZEBO_RESOURCE_PATH':
            ':'.join([gz_resource_path, gz_models_path])
     }
     
     # ========================================================================
     # LAUNCH ARGUMENTS
     # ========================================================================
+    declare_enable_rviz = DeclareLaunchArgument(
+        'enable_rviz',
+        default_value='false',
+        description='Launch RViz for visualization'
+    )
     
-    # Starting position: -2.0m X, 0.0m Y, -0.5m Z (0.5m below surface)
-    # Gate position: -0.5m X (1.5m ahead of robot)
     declare_spawn_x = DeclareLaunchArgument(
         'spawn_x',
         default_value='-2.0',
-        description='X position for robot spawn (gate is at -0.5m)'
+        description='X position for robot spawn'
     )
     
     declare_spawn_y = DeclareLaunchArgument(
         'spawn_y',
         default_value='0.0',
-        description='Y position for robot spawn (centered)'
+        description='Y position for robot spawn'
     )
     
     declare_spawn_z = DeclareLaunchArgument(
         'spawn_z',
         default_value='-0.5',
-        description='Z position for robot spawn (0.5m below water surface)'
-    )
-    
-    declare_spawn_yaw = DeclareLaunchArgument(
-        'spawn_yaw',
-        default_value='0.0',
-        description='Yaw orientation (0.0 = facing +X direction toward gate)'
+        description='Z position for robot spawn (below water surface)'
     )
     
     # ========================================================================
@@ -96,17 +98,18 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}]
     )
     
-    # 3. Gazebo Simulator
+    # 3. Gazebo Simulator - FIXED VERSION
+    # Try 'gz sim' first (modern Gazebo), fallback to 'ign gazebo' (older Ignition)
     gazebo_process = ExecuteProcess(
-        cmd=['ruby', FindExecutable(name="ign"), 'gazebo', '-r', '-v', '3', world_file],
+        cmd=['gz', 'sim', '-r', '-v', '3', world_file],
         output='screen',
         additional_env=gz_env,
         shell=False
     )
     
-    # 4. Spawn Robot Entity (Delayed 2 seconds to allow Gazebo to initialize)
+    # 4. Spawn Robot Entity (Delayed 3 seconds - increased for reliability)
     spawn_entity = TimerAction(
-        period=2.0,
+        period=3.0,
         actions=[
             Node(
                 package="ros_gz_sim",
@@ -118,7 +121,7 @@ def generate_launch_description():
                     "-z", LaunchConfiguration('spawn_z'),
                     "-x", LaunchConfiguration('spawn_x'),
                     "-y", LaunchConfiguration('spawn_y'),
-                    "-Y", LaunchConfiguration('spawn_yaw'),
+                    "-Y", "0.0",
                     "--ros-args", "--log-level", "warn"
                 ],
                 parameters=[{"use_sim_time": True}],
@@ -126,9 +129,9 @@ def generate_launch_description():
         ]
     )
     
-    # 5. ROS-Gazebo Bridge (Delayed 3 seconds)
+    # 5. ROS-Gazebo Bridge (Delayed 4 seconds)
     bridge = TimerAction(
-        period=3.0,
+        period=4.0,
         actions=[
             Node(
                 package="ros_gz_bridge",
@@ -144,38 +147,47 @@ def generate_launch_description():
     )
     
     # ========================================================================
-    # AUTONOMOUS NAVIGATION NODE
+    # NAVIGATION NODES
     # ========================================================================
     
-    # 6. Autonomous Navigation (Delayed 5 seconds to allow sensors to initialize)
-    autonomous_navigation = TimerAction(
-        period=5.0,
+    # 6. Camera Processor (Delayed 6 seconds)
+    camera_processor = TimerAction(
+        period=6.0,
         actions=[
             Node(
                 package='underwater_navigation',
-                executable='autonomous_navigation_node.py',
-                name='autonomous_navigation',
+                executable='camera_processor_node.py',
+                name='camera_processor',
                 output='screen',
-                parameters=[{'use_sim_time': True}],
-                emulate_tty=True
+                parameters=[{'use_sim_time': True}]
             )
         ]
     )
     
-    # ========================================================================
-    # OPTIONAL VISUALIZATION
-    # ========================================================================
-    
-    # 7. Image Viewer for processed camera feed (Optional - Delayed 7 seconds)
-    image_viewer = TimerAction(
-        period=7.0,
+    # 7. Gate Navigation (Delayed 6 seconds)
+    gate_navigation = TimerAction(
+        period=6.0,
         actions=[
-            ExecuteProcess(
-                cmd=[
-                    'ros2', 'run', 'rqt_image_view', 'rqt_image_view',
-                    '/autonomous/processed_image'
-                ],
-                output='screen'
+            Node(
+                package='underwater_navigation',
+                executable='gate_navigation_node.py',
+                name='gate_navigation',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            )
+        ]
+    )
+    
+    # 8. Thruster Controller (Delayed 6 seconds)
+    thruster_controller = TimerAction(
+        period=6.0,
+        actions=[
+            Node(
+                package='underwater_navigation',
+                executable='thruster_controller_node.py',
+                name='thruster_controller',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
             )
         ]
     )
@@ -185,10 +197,10 @@ def generate_launch_description():
     # ========================================================================
     return LaunchDescription([
         # Launch arguments
+        declare_enable_rviz,
         declare_spawn_x,
         declare_spawn_y,
         declare_spawn_z,
-        declare_spawn_yaw,
         
         # Core simulation (immediate start)
         robot_state_publisher,
@@ -196,10 +208,11 @@ def generate_launch_description():
         gazebo_process,
         
         # Timed launches
-        spawn_entity,              # 2s delay
-        bridge,                    # 3s delay
-        autonomous_navigation,     # 5s delay
-        image_viewer,              # 7s delay (optional)
+        spawn_entity,           # 3s delay
+        bridge,                 # 4s delay
+        camera_processor,       # 6s delay
+        gate_navigation,        # 6s delay
+        thruster_controller,    # 6s delay
     ])
 
 
