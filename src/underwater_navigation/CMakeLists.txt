@@ -24,6 +24,7 @@ install(PROGRAMS
   scripts/gate_navigation_node.py
   scripts/camera_processor_node.py
   scripts/thruster_controller_node.py
+  scripts/autonomous_navigation_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

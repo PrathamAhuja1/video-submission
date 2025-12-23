@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Complete Underwater Navigation Simulation Launch File
-Spawns robot at starting position with gate 1.5m ahead
+Autonomous Underwater Navigation Launch File
+Complete autonomous system with gate detection and navigation
+Robot spawns at X=-2.0m and navigates through gate at X=-0.5m
 """
 
 import os
@@ -9,7 +10,6 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, TimerAction, DeclareLaunchArgument
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration
-from launch.conditions import IfCondition
 from launch_ros.actions import Node
 import launch_ros.descriptions
 
@@ -21,7 +21,7 @@ def generate_launch_description():
     # PATHS
     # ========================================================================
     urdf_file = os.path.join(pkg_share, 'urdf', 'orca4_description.urdf')
-    world_file = os.path.join(pkg_share, 'worlds', 'underwater_pool.sdf')
+    world_file = os.path.join(pkg_share, 'worlds', 'underwater_pool_updated.sdf')
     bridge_config = os.path.join(pkg_share, 'config', 'bridge_config.yaml')
     
     # ========================================================================
@@ -43,29 +43,31 @@ def generate_launch_description():
     # ========================================================================
     # LAUNCH ARGUMENTS
     # ========================================================================
-    declare_enable_rviz = DeclareLaunchArgument(
-        'enable_rviz',
-        default_value='false',
-        description='Launch RViz for visualization'
-    )
     
     # Starting position: -2.0m X, 0.0m Y, -0.5m Z (0.5m below surface)
+    # Gate position: -0.5m X (1.5m ahead of robot)
     declare_spawn_x = DeclareLaunchArgument(
         'spawn_x',
         default_value='-2.0',
-        description='X position for robot spawn'
+        description='X position for robot spawn (gate is at -0.5m)'
     )
     
     declare_spawn_y = DeclareLaunchArgument(
         'spawn_y',
         default_value='0.0',
-        description='Y position for robot spawn'
+        description='Y position for robot spawn (centered)'
     )
     
     declare_spawn_z = DeclareLaunchArgument(
         'spawn_z',
         default_value='-0.5',
-        description='Z position for robot spawn (below water surface)'
+        description='Z position for robot spawn (0.5m below water surface)'
+    )
+    
+    declare_spawn_yaw = DeclareLaunchArgument(
+        'spawn_yaw',
+        default_value='0.0',
+        description='Yaw orientation (0.0 = facing +X direction toward gate)'
     )
     
     # ========================================================================
@@ -116,7 +118,7 @@ def generate_launch_description():
                     "-z", LaunchConfiguration('spawn_z'),
                     "-x", LaunchConfiguration('spawn_x'),
                     "-y", LaunchConfiguration('spawn_y'),
-                    "-Y", "0.0",  # Facing forward (+X direction)
+                    "-Y", LaunchConfiguration('spawn_yaw'),
                     "--ros-args", "--log-level", "warn"
                 ],
                 parameters=[{"use_sim_time": True}],
@@ -142,47 +144,20 @@ def generate_launch_description():
     )
     
     # ========================================================================
-    # NAVIGATION NODES
+    # AUTONOMOUS NAVIGATION NODE
     # ========================================================================
     
-    # 6. Camera Processor (Delayed 5 seconds)
-    camera_processor = TimerAction(
+    # 6. Autonomous Navigation (Delayed 5 seconds to allow sensors to initialize)
+    autonomous_navigation = TimerAction(
         period=5.0,
         actions=[
             Node(
                 package='underwater_navigation',
-                executable='camera_processor_node.py',
-                name='camera_processor',
+                executable='autonomous_navigation_node.py',
+                name='autonomous_navigation',
                 output='screen',
-                parameters=[{'use_sim_time': True}]
-            )
-        ]
-    )
-    
-    # 7. Gate Navigation (Delayed 5 seconds)
-    gate_navigation = TimerAction(
-        period=5.0,
-        actions=[
-            Node(
-                package='underwater_navigation',
-                executable='gate_navigation_node.py',
-                name='gate_navigation',
-                output='screen',
-                parameters=[{'use_sim_time': True}]
-            )
-        ]
-    )
-    
-    # 8. Thruster Controller (Delayed 5 seconds)
-    thruster_controller = TimerAction(
-        period=5.0,
-        actions=[
-            Node(
-                package='underwater_navigation',
-                executable='thruster_controller_node.py',
-                name='thruster_controller',
-                output='screen',
-                parameters=[{'use_sim_time': True}]
+                parameters=[{'use_sim_time': True}],
+                emulate_tty=True
             )
         ]
     )
@@ -191,12 +166,15 @@ def generate_launch_description():
     # OPTIONAL VISUALIZATION
     # ========================================================================
     
-    # 9. Image Viewer (Optional - shows camera feed)
+    # 7. Image Viewer for processed camera feed (Optional - Delayed 7 seconds)
     image_viewer = TimerAction(
         period=7.0,
         actions=[
             ExecuteProcess(
-                cmd=['ros2', 'run', 'rqt_image_view', 'rqt_image_view'],
+                cmd=[
+                    'ros2', 'run', 'rqt_image_view', 'rqt_image_view',
+                    '/autonomous/processed_image'
+                ],
                 output='screen'
             )
         ]
@@ -207,10 +185,10 @@ def generate_launch_description():
     # ========================================================================
     return LaunchDescription([
         # Launch arguments
-        declare_enable_rviz,
         declare_spawn_x,
         declare_spawn_y,
         declare_spawn_z,
+        declare_spawn_yaw,
         
         # Core simulation (immediate start)
         robot_state_publisher,
@@ -218,12 +196,10 @@ def generate_launch_description():
         gazebo_process,
         
         # Timed launches
-        spawn_entity,           # 2s delay
-        bridge,                 # 3s delay
-        camera_processor,       # 5s delay
-        gate_navigation,        # 5s delay
-        thruster_controller,    # 5s delay
-        image_viewer,           # 7s delay
+        spawn_entity,              # 2s delay
+        bridge,                    # 3s delay
+        autonomous_navigation,     # 5s delay
+        image_viewer,              # 7s delay (optional)
     ])
 
 

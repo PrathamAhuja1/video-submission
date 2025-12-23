@@ -44,40 +44,52 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
-    <!-- Underwater Ambient Light -->
-    <light type="point" name="underwater_light">
-      <pose>0 0 0 0 0 0</pose>
-      <diffuse>0.4 0.5 0.6 1</diffuse>
-      <specular>0.1 0.1 0.1 1</specular>
+    <!-- Additional Underwater Lighting for better visibility -->
+    <light type="point" name="underwater_light_1">
+      <pose>0 0 -0.5 0 0 0</pose>
+      <diffuse>0.5 0.6 0.7 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
       <attenuation>
-        <range>20</range>
+        <range>25</range>
         <constant>0.5</constant>
         <linear>0.01</linear>
         <quadratic>0.001</quadratic>
       </attenuation>
     </light>
 
+    <light type="point" name="gate_spotlight">
+      <pose>0.5 0 0 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.5 0.5 0.5 1</specular>
+      <attenuation>
+        <range>15</range>
+        <constant>0.3</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+    </light>
+
     <!-- ====================================================================== -->
-    <!-- POOL STRUCTURE - Simple 10m x 5m x 2m pool                            -->
+    <!-- POOL STRUCTURE - 15m x 8m x 2m pool for navigation                    -->
     <!-- ====================================================================== -->
     <model name="pool">
       <static>true</static>
       <link name="pool_link">
         
-        <!-- Pool Floor at -1.0m depth -->
+        <!-- Pool Floor at -1.5m depth -->
         <collision name="floor_collision">
-          <pose>0 0 -1.0 0 0 0</pose>
+          <pose>0 0 -1.5 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 5 0.1</size>
+              <size>15 8 0.1</size>
             </box>
           </geometry>
         </collision>
         <visual name="floor_visual">
-          <pose>0 0 -1.0 0 0 0</pose>
+          <pose>0 0 -1.5 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 5 0.1</size>
+              <size>15 8 0.1</size>
             </box>
           </geometry>
           <material>
@@ -87,20 +99,20 @@
           </material>
         </visual>
 
-        <!-- Wall 1 (Front) -->
+        <!-- Wall 1 (Front +X) -->
         <collision name="wall1_collision">
-          <pose>5.05 0 -0.5 0 0 0</pose>
+          <pose>7.55 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.1 5 1.1</size>
+              <size>0.1 8 1.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="wall1_visual">
-          <pose>5.05 0 -0.5 0 0 0</pose>
+          <pose>7.55 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.1 5 1.1</size>
+              <size>0.1 8 1.6</size>
             </box>
           </geometry>
           <material>
@@ -110,20 +122,20 @@
           </material>
         </visual>
 
-        <!-- Wall 2 (Back) -->
+        <!-- Wall 2 (Back -X) -->
         <collision name="wall2_collision">
-          <pose>-5.05 0 -0.5 0 0 0</pose>
+          <pose>-7.55 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.1 5 1.1</size>
+              <size>0.1 8 1.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="wall2_visual">
-          <pose>-5.05 0 -0.5 0 0 0</pose>
+          <pose>-7.55 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.1 5 1.1</size>
+              <size>0.1 8 1.6</size>
             </box>
           </geometry>
           <material>
@@ -133,20 +145,20 @@
           </material>
         </visual>
 
-        <!-- Wall 3 (Left) -->
+        <!-- Wall 3 (Left +Y) -->
         <collision name="wall3_collision">
-          <pose>0 2.55 -0.5 0 0 0</pose>
+          <pose>0 4.05 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 0.1 1.1</size>
+              <size>15 0.1 1.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="wall3_visual">
-          <pose>0 2.55 -0.5 0 0 0</pose>
+          <pose>0 4.05 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 0.1 1.1</size>
+              <size>15 0.1 1.6</size>
             </box>
           </geometry>
           <material>
@@ -156,20 +168,20 @@
           </material>
         </visual>
 
-        <!-- Wall 4 (Right) -->
+        <!-- Wall 4 (Right -Y) -->
         <collision name="wall4_collision">
-          <pose>0 -2.55 -0.5 0 0 0</pose>
+          <pose>0 -4.05 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 0.1 1.1</size>
+              <size>15 0.1 1.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="wall4_visual">
-          <pose>0 -2.55 -0.5 0 0 0</pose>
+          <pose>0 -4.05 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 0.1 1.1</size>
+              <size>15 0.1 1.6</size>
             </box>
           </geometry>
           <material>
@@ -184,7 +196,7 @@
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>10 5 0.01</size>
+              <size>15 8 0.01</size>
             </box>
           </geometry>
           <material>
@@ -198,169 +210,298 @@
     </model>
 
     <!-- ====================================================================== -->
-    <!-- STARTING ZONE MARKER - Visual indicator at bot starting position      -->
-    <!-- Located at X=-2.0m, centered, 0.5m below surface                      -->
+    <!-- STARTING ZONE MARKER                                                   -->
+    <!-- Located at X=-2.0m, Y=0, Z=-0.5m (0.5m below surface)                -->
+    <!-- This is where the robot spawns                                         -->
     <!-- ====================================================================== -->
     <model name="starting_marker">
       <static>true</static>
       <pose>-2.0 0 -0.45 0 0 0</pose>
       <link name="marker_link">
-        <visual name="marker_visual">
+        
+        <!-- Yellow rectangular frame marker -->
+        <visual name="marker_top">
+          <pose>0 0.4 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.6 0.6 0.02</size>
+              <size>0.8 0.05 0.02</size>
             </box>
           </geometry>
           <material>
             <ambient>1 1 0 1</ambient>
             <diffuse>1 1 0 1</diffuse>
-            <specular>0.8 0.8 0.8 1</specular>
             <emissive>0.8 0.8 0 1</emissive>
           </material>
         </visual>
+        
+        <visual name="marker_bottom">
+          <pose>0 -0.4 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.8 0.05 0.02</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+            <emissive>0.8 0.8 0 1</emissive>
+          </material>
+        </visual>
+        
+        <visual name="marker_left">
+          <pose>-0.4 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.75 0.02</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+            <emissive>0.8 0.8 0 1</emissive>
+          </material>
+        </visual>
+        
+        <visual name="marker_right">
+          <pose>0.4 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.75 0.02</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+            <emissive>0.8 0.8 0 1</emissive>
+          </material>
+        </visual>
+        
       </link>
     </model>
 
     <!-- ====================================================================== -->
-    <!-- WHITE/OFF-WHITE NAVIGATION GATE                                        -->
-    <!-- Position: 1.5m in front of starting position (X=-0.5m)                -->
-    <!-- Height: 1.0m, Width: 1.2m (opening)                                   -->
-    <!-- Bright white color with high visibility                               -->
+    <!-- WHITE/OFF-WHITE NAVIGATION GATE - 1.5m x 1.5m (150cm x 150cm)        -->
+    <!-- Position: 1.5m ahead of starting position (X=-0.5m, Y=0, Z=-0.5m)    -->
+    <!-- Gate opening: 1.5m wide x 1.5m tall                                   -->
+    <!-- Bright white/off-white color with high visibility and emissive        -->
     <!-- ====================================================================== -->
     <model name="navigation_gate">
       <static>true</static>
       <pose>-0.5 0 -0.5 0 0 0</pose>
       <link name="gate_link">
         
-        <!-- Left Post -->
+        <!-- Left Post (0.06m x 0.06m x 1.5m) -->
         <collision name="left_post_collision">
-          <pose>0 -0.6 0 0 0 0</pose>
+          <pose>0 -0.75 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 0.05 1.0</size>
+              <size>0.06 0.06 1.5</size>
             </box>
           </geometry>
         </collision>
         <visual name="left_post_visual">
-          <pose>0 -0.6 0 0 0 0</pose>
+          <pose>0 -0.75 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 0.05 1.0</size>
+              <size>0.06 0.06 1.5</size>
             </box>
           </geometry>
           <material>
             <ambient>0.95 0.95 0.95 1</ambient>
             <diffuse>0.95 0.95 0.95 1</diffuse>
             <specular>0.9 0.9 0.9 1</specular>
-            <emissive>0.7 0.7 0.7 1</emissive>
+            <emissive>0.75 0.75 0.75 1</emissive>
           </material>
         </visual>
 
-        <!-- Right Post -->
+        <!-- Right Post (0.06m x 0.06m x 1.5m) -->
         <collision name="right_post_collision">
-          <pose>0 0.6 0 0 0 0</pose>
+          <pose>0 0.75 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 0.05 1.0</size>
+              <size>0.06 0.06 1.5</size>
             </box>
           </geometry>
         </collision>
         <visual name="right_post_visual">
-          <pose>0 0.6 0 0 0 0</pose>
+          <pose>0 0.75 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 0.05 1.0</size>
+              <size>0.06 0.06 1.5</size>
             </box>
           </geometry>
           <material>
             <ambient>0.95 0.95 0.95 1</ambient>
             <diffuse>0.95 0.95 0.95 1</diffuse>
             <specular>0.9 0.9 0.9 1</specular>
-            <emissive>0.7 0.7 0.7 1</emissive>
+            <emissive>0.75 0.75 0.75 1</emissive>
           </material>
         </visual>
 
-        <!-- Top Bar -->
+        <!-- Top Bar (0.06m x 1.5m x 0.06m) -->
         <collision name="top_bar_collision">
-          <pose>0 0 0.5 0 0 0</pose>
+          <pose>0 0 0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 1.2 0.05</size>
+              <size>0.06 1.5 0.06</size>
             </box>
           </geometry>
         </collision>
         <visual name="top_bar_visual">
-          <pose>0 0 0.5 0 0 0</pose>
+          <pose>0 0 0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 1.2 0.05</size>
+              <size>0.06 1.5 0.06</size>
             </box>
           </geometry>
           <material>
             <ambient>0.95 0.95 0.95 1</ambient>
             <diffuse>0.95 0.95 0.95 1</diffuse>
             <specular>0.9 0.9 0.9 1</specular>
-            <emissive>0.7 0.7 0.7 1</emissive>
+            <emissive>0.75 0.75 0.75 1</emissive>
           </material>
         </visual>
 
-        <!-- Bottom Bar (optional base) -->
+        <!-- Bottom Bar (0.06m x 1.5m x 0.06m) -->
         <collision name="bottom_bar_collision">
-          <pose>0 0 -0.5 0 0 0</pose>
+          <pose>0 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 1.2 0.05</size>
+              <size>0.06 1.5 0.06</size>
             </box>
           </geometry>
         </collision>
         <visual name="bottom_bar_visual">
-          <pose>0 0 -0.5 0 0 0</pose>
+          <pose>0 0 -0.75 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.05 1.2 0.05</size>
+              <size>0.06 1.5 0.06</size>
             </box>
           </geometry>
           <material>
             <ambient>0.95 0.95 0.95 1</ambient>
             <diffuse>0.95 0.95 0.95 1</diffuse>
             <specular>0.9 0.9 0.9 1</specular>
-            <emissive>0.7 0.7 0.7 1</emissive>
+            <emissive>0.75 0.75 0.75 1</emissive>
           </material>
         </visual>
 
-        <!-- Additional visual markers on posts for better detection -->
-        <visual name="left_marker">
-          <pose>0 -0.6 0 0 0 0</pose>
+        <!-- Additional cylindrical markers for enhanced visibility -->
+        <!-- Left post marker -->
+        <visual name="left_marker_cylinder">
+          <pose>0 -0.75 0 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.035</radius>
-              <length>1.0</length>
+              <radius>0.04</radius>
+              <length>1.5</length>
             </cylinder>
           </geometry>
           <material>
             <ambient>1.0 1.0 1.0 1</ambient>
             <diffuse>1.0 1.0 1.0 1</diffuse>
             <specular>0.95 0.95 0.95 1</specular>
-            <emissive>0.8 0.8 0.8 1</emissive>
+            <emissive>0.85 0.85 0.85 1</emissive>
           </material>
         </visual>
         
-        <visual name="right_marker">
-          <pose>0 0.6 0 0 0 0</pose>
+        <!-- Right post marker -->
+        <visual name="right_marker_cylinder">
+          <pose>0 0.75 0 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.035</radius>
-              <length>1.0</length>
+              <radius>0.04</radius>
+              <length>1.5</length>
             </cylinder>
           </geometry>
           <material>
             <ambient>1.0 1.0 1.0 1</ambient>
             <diffuse>1.0 1.0 1.0 1</diffuse>
             <specular>0.95 0.95 0.95 1</specular>
-            <emissive>0.8 0.8 0.8 1</emissive>
+            <emissive>0.85 0.85 0.85 1</emissive>
           </material>
         </visual>
 
+        <!-- Corner markers for better edge detection -->
+        <visual name="corner_tl">
+          <pose>0 -0.75 0.75 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>0.05</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>1.0 1.0 1.0 1</ambient>
+            <diffuse>1.0 1.0 1.0 1</diffuse>
+            <emissive>0.9 0.9 0.9 1</emissive>
+          </material>
+        </visual>
+        
+        <visual name="corner_tr">
+          <pose>0 0.75 0.75 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>0.05</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>1.0 1.0 1.0 1</ambient>
+            <diffuse>1.0 1.0 1.0 1</diffuse>
+            <emissive>0.9 0.9 0.9 1</emissive>
+          </material>
+        </visual>
+        
+        <visual name="corner_bl">
+          <pose>0 -0.75 -0.75 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>0.05</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>1.0 1.0 1.0 1</ambient>
+            <diffuse>1.0 1.0 1.0 1</diffuse>
+            <emissive>0.9 0.9 0.9 1</emissive>
+          </material>
+        </visual>
+        
+        <visual name="corner_br">
+          <pose>0 0.75 -0.75 0 0 0</pose>
+          <geometry>
+            <sphere>
+              <radius>0.05</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>1.0 1.0 1.0 1</ambient>
+            <diffuse>1.0 1.0 1.0 1</diffuse>
+            <emissive>0.9 0.9 0.9 1</emissive>
+          </material>
+        </visual>
+
+      </link>
+    </model>
+
+    <!-- ====================================================================== -->
+    <!-- FINISH MARKER (Optional - indicates successful passage)               -->
+    <!-- Located 2m past the gate                                              -->
+    <!-- ====================================================================== -->
+    <model name="finish_marker">
+      <static>true</static>
+      <pose>1.5 0 -0.5 0 0 0</pose>
+      <link name="finish_link">
+        <visual name="finish_visual">
+          <geometry>
+            <cylinder>
+              <radius>0.3</radius>
+              <length>0.05</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+            <emissive>0 0.8 0 1</emissive>
+          </material>
+        </visual>
       </link>
     </model>
 
