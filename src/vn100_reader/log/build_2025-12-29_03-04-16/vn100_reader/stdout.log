@@ -1,0 +1,8 @@
+running egg_info
+writing ../build/vn100_reader/vn100_reader.egg-info/PKG-INFO
+writing dependency_links to ../build/vn100_reader/vn100_reader.egg-info/dependency_links.txt
+writing entry points to ../build/vn100_reader/vn100_reader.egg-info/entry_points.txt
+writing requirements to ../build/vn100_reader/vn100_reader.egg-info/requires.txt
+writing top-level names to ../build/vn100_reader/vn100_reader.egg-info/top_level.txt
+reading manifest file '../build/vn100_reader/vn100_reader.egg-info/SOURCES.txt'
+adding license file 'LICENSE'

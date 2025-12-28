@@ -1,0 +1,3 @@
+[console_scripts]
+vn100_ypr_node = vn100_reader.vn100_ypr_publisher:main
+
