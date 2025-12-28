@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: vn100-reader
+Version: 0.0.1
+Summary: ROS 2 VN-100 IMU driver publishing YPR and YPR rate
+Home-page: UNKNOWN
+Maintainer: Your Name
+Maintainer-email: you@email.com
+License: MIT
+Platform: UNKNOWN
+License-File: LICENSE
+
+UNKNOWN
+

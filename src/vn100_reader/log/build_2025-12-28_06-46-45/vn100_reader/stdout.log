@@ -1,0 +1,23 @@
+running egg_info
+writing ../build/vn100_reader/vn100_reader.egg-info/PKG-INFO
+writing dependency_links to ../build/vn100_reader/vn100_reader.egg-info/dependency_links.txt
+writing entry points to ../build/vn100_reader/vn100_reader.egg-info/entry_points.txt
+writing requirements to ../build/vn100_reader/vn100_reader.egg-info/requires.txt
+writing top-level names to ../build/vn100_reader/vn100_reader.egg-info/top_level.txt
+reading manifest file '../build/vn100_reader/vn100_reader.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../build/vn100_reader/vn100_reader.egg-info/SOURCES.txt'
+running build
+running build_py
+copying vn100_reader/vn100_ypr_publisher.py -> /home/suyash/vn100_reader/build/vn100_reader/build/lib/vn100_reader
+running install
+running install_lib
+copying /home/suyash/vn100_reader/build/vn100_reader/build/lib/vn100_reader/vn100_ypr_publisher.py -> /home/suyash/vn100_reader/install/vn100_reader/lib/python3.10/site-packages/vn100_reader
+byte-compiling /home/suyash/vn100_reader/install/vn100_reader/lib/python3.10/site-packages/vn100_reader/vn100_ypr_publisher.py to vn100_ypr_publisher.cpython-310.pyc
+running install_data
+running install_egg_info
+removing '/home/suyash/vn100_reader/install/vn100_reader/lib/python3.10/site-packages/vn100_reader-0.0.1-py3.10.egg-info' (and everything under it)
+Copying ../build/vn100_reader/vn100_reader.egg-info to /home/suyash/vn100_reader/install/vn100_reader/lib/python3.10/site-packages/vn100_reader-0.0.1-py3.10.egg-info
+running install_scripts
+Installing vn100_ypr_node script to /home/suyash/vn100_reader/install/vn100_reader/lib/vn100_reader
+writing list of installed files to '/home/suyash/vn100_reader/build/vn100_reader/install.log'

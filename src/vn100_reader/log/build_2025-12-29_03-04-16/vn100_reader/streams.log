@@ -1,0 +1,42 @@
+[0.366s] Invoking command in '/home/pratham/Documents/vn100_reader/src': PYTHONPATH=/home/pratham/Documents/vn100_reader/build/vn100_reader/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/pratham/Documents/vn100_reader/install/vn100_reader/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/vn100_reader build --build-base /home/pratham/Documents/vn100_reader/build/vn100_reader/build install --record /home/pratham/Documents/vn100_reader/build/vn100_reader/install.log --single-version-externally-managed install_data
+[0.469s] /home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[0.469s]   warnings.warn(msg)
+[0.523s] running egg_info
+[0.532s] writing ../build/vn100_reader/vn100_reader.egg-info/PKG-INFO
+[0.532s] writing dependency_links to ../build/vn100_reader/vn100_reader.egg-info/dependency_links.txt
+[0.532s] writing entry points to ../build/vn100_reader/vn100_reader.egg-info/entry_points.txt
+[0.532s] writing requirements to ../build/vn100_reader/vn100_reader.egg-info/requires.txt
+[0.533s] writing top-level names to ../build/vn100_reader/vn100_reader.egg-info/top_level.txt
+[0.550s] reading manifest file '../build/vn100_reader/vn100_reader.egg-info/SOURCES.txt'
+[0.550s] Traceback (most recent call last):
+[0.550s]   File "/home/pratham/Documents/vn100_reader/src/setup.py", line 5, in <module>
+[0.550s]     setup(
+[0.550s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/__init__.py", line 115, in setup
+[0.550s]     return distutils.core.setup(**attrs)
+[0.550s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/core.py", line 186, in setup
+[0.550s]     return run_commands(dist)
+[0.550s] adding license file 'LICENSE'
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/core.py", line 202, in run_commands
+[0.551s]     dist.run_commands()
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py", line 1002, in run_commands
+[0.551s]     self.run_command(cmd)
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/dist.py", line 1102, in run_command
+[0.551s]     super().run_command(command)
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py", line 1021, in run_command
+[0.551s]     cmd_obj.run()
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/command/egg_info.py", line 312, in run
+[0.551s]     self.find_sources()
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/command/egg_info.py", line 320, in find_sources
+[0.551s]     mm.run()
+[0.551s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/command/egg_info.py", line 548, in run
+[0.551s]     self.prune_file_list()
+[0.552s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/command/sdist.py", line 162, in prune_file_list
+[0.552s]     super().prune_file_list()
+[0.552s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_distutils/command/sdist.py", line 386, in prune_file_list
+[0.552s]     base_dir = self.distribution.get_fullname()
+[0.552s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_core_metadata.py", line 275, in get_fullname
+[0.552s]     return _distribution_fullname(self.get_name(), self.get_version())
+[0.552s]   File "/home/pratham/.local/lib/python3.10/site-packages/setuptools/_core_metadata.py", line 293, in _distribution_fullname
+[0.552s]     canonicalize_version(version, strip_trailing_zero=False),
+[0.552s] TypeError: canonicalize_version() got an unexpected keyword argument 'strip_trailing_zero'
+[0.569s] Invoked command in '/home/pratham/Documents/vn100_reader/src' returned '1': PYTHONPATH=/home/pratham/Documents/vn100_reader/build/vn100_reader/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/pratham/Documents/vn100_reader/install/vn100_reader/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/vn100_reader build --build-base /home/pratham/Documents/vn100_reader/build/vn100_reader/build install --record /home/pratham/Documents/vn100_reader/build/vn100_reader/install.log --single-version-externally-managed install_data

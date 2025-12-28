@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: vn100_reader
+Version: 0.0.1
+Summary: ROS 2 VN-100 IMU driver publishing YPR and YPR rate
+Maintainer: Your Name
+Maintainer-email: you@email.com
+License: MIT
+License-File: LICENSE
+Requires-Dist: setuptools
+Requires-Dist: vectornav
+Requires-Dist: pyserial
+Dynamic: license
+Dynamic: license-file
+Dynamic: maintainer
+Dynamic: maintainer-email
+Dynamic: requires-dist
+Dynamic: summary
