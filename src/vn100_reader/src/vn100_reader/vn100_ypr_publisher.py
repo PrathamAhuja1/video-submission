@@ -24,7 +24,7 @@ class VN100YPRPublisher(Node):
 
         self.sensor = Sensor()
         try:
-            self.sensor.connect(port, baudrate)
+            self.sensor.connect(port, baud)
             self.get_logger().info(f'Connected to VN-100 on {port}')
         except Exception as e:
             self.get_logger().fatal(f'Failed to connect to VN-100: {e}')
