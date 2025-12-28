@@ -70,7 +70,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='auv_slam',
-                    executable='hardware_pwm_mapper.py',
+                    executable='pwm_mapper.py',
                     name='hardware_pwm_mapper',
                     output='screen'
                 )
@@ -85,7 +85,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='auv_slam',
-                    executable='gate_detector_node.py',
+                    executable='gate_detector.py',
                     name='gate_detector',
                     output='screen'
                 )
@@ -100,7 +100,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='auv_slam',
-                    executable='hardware_gate_navigator.py',
+                    executable='gate_navigator.py',
                     name='gate_navigator',
                     output='screen'
                 )
@@ -115,7 +115,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='auv_slam',
-                    executable='hardware_safety_monitor.py',
+                    executable='safety_monitor.py',
                     name='safety_monitor',
                     output='screen',
                     parameters=[{
