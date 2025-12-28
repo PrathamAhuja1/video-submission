@@ -127,6 +127,22 @@ def generate_launch_description():
                 )
             ]
         ),
+
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200
+                    }]
+                )
+            ]
+        ),
     ])
 
 
