@@ -15,6 +15,9 @@ install(PROGRAMS
   scripts/gate_navigator.py
   scripts/pwm_mapper.py
   scripts/safety_monitor.py
+  scripts/serial_bridge.py
+  scripts/ball_detector.py
+  scripts/ball_follower.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

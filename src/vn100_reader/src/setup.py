@@ -21,7 +21,7 @@ setup(
     maintainer_email='you@email.com',
     description='ROS 2 VN-100 IMU driver publishing YPR and YPR rate',
     license='MIT',
-    tests_require=['pytest'],
+#    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'vn100_ypr_node = vn100_reader.vn100_ypr_publisher:main',
