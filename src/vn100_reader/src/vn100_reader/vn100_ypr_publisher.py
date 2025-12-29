@@ -21,6 +21,7 @@ class VN100YPRPublisher(Node):
 
         self.ypr_pub = self.create_publisher(Vector3, '/vn100/ypr', 10)
         self.ypr_rate_pub = self.create_publisher(Vector3, '/vn100/ypr_rate', 10)
+        self.linear_accel_pub = self.create_publisher(Vector3, '/vn100/linear_accel', 10)
 
         self.sensor = Sensor()
         try:
@@ -32,12 +33,14 @@ class VN100YPRPublisher(Node):
 
         self.ypr_reg = Registers.Attitude.YawPitchRoll()
         self.gyro_reg = Registers.IMU.Gyro()
+        self.linear_accel_reg = Registers.IMU.Accel()
 
         self.timer = self.create_timer(1.0 / rate, self.publish_data)
 
     def publish_data(self):
         self.sensor.readRegister(self.ypr_reg)
         self.sensor.readRegister(self.gyro_reg)
+        self.sensor.readRegister(self.linear_accel_reg)
 
         ypr_msg = Vector3()
         ypr_msg.x = self.ypr_reg.yaw
@@ -48,9 +51,15 @@ class VN100YPRPublisher(Node):
         ypr_rate_msg.x = self.gyro_reg.gyroZ
         ypr_rate_msg.y = self.gyro_reg.gyroY
         ypr_rate_msg.z = self.gyro_reg.gyroX
+        
+        linear_accel_msg = Vector3()
+        linear_accel_msg.x = self.linear_accel_reg.accelX
+        linear_accel_msg.y = self.linear_accel_reg.accelY
+        linear_accel_msg.z = self.linear_accel_reg.accelZ
 
         self.ypr_pub.publish(ypr_msg)
         self.ypr_rate_pub.publish(ypr_rate_msg)
+        self.linear_accel_pub.publish(linear_accel_msg)
 
 
 def main(args=None):
