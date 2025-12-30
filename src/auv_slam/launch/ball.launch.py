@@ -72,7 +72,7 @@ def generate_launch_description():
                     name='heave_pid_controller',
                     output='screen',
                     parameters=[{
-                        'target_depth': 0.6,
+                        'target_depth': 1.0,
                         'depth_tolerance': 0.05,
                         'kp': 1.2,
                         'ki': 0.05,
