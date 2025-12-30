@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
-Autonomous Gate Detection Mission Launch
-Launches all necessary nodes for real hardware operation
+Autonomous Gate Detection Mission Launch with Heave PID Control
+Includes automatic depth control via PID
 """
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, TimerAction
-import os
+from launch.actions import TimerAction
 
 
 def generate_launch_description():
     
-    # Camera parameters file path
     camera_params_file = '/home/radxa-x4/Documents/usb_cam/config/params_1.yaml'
     
     return LaunchDescription([
         
         # ============================================================
-        # 1. USB CAMERA NODE - Launch immediately
+        # 1. USB CAMERA NODE
         # ============================================================
         Node(
             package='usb_cam',
@@ -33,7 +31,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 2. DEPTH SENSOR NODE - Launch immediately
+        # 2. DEPTH SENSOR NODE
         # ============================================================
         Node(
             package='depth_sensor_pkg',
@@ -48,7 +46,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 3. VN100 IMU NODE - Launch immediately
+        # 3. VN100 IMU NODE
         # ============================================================
         Node(
             package='vn100_reader',
@@ -63,7 +61,50 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 4. HARDWARE PWM MAPPER - Delay 2s for sensor initialization
+        # 4. HEAVE PID CONTROLLER - Delay 1s
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='heave_pid_controller.py',
+                    name='heave_pid_controller',
+                    output='screen',
+                    parameters=[{
+                        'target_depth': 0.6,        # 60cm target depth
+                        'depth_tolerance': 0.05,    # 5cm tolerance
+                        'kp': 1.2,                  # Proportional gain
+                        'ki': 0.05,                 # Integral gain
+                        'kd': 0.3,                  # Derivative gain
+                        'max_output': 0.6,          # Max vertical velocity
+                        'control_rate': 20.0,       # 20Hz control
+                        'enable_on_start': True     # Auto-enable
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 5. COMMAND MIXER - Delay 1s
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='cmd_mixer.py',
+                    name='command_mixer',
+                    output='screen',
+                    parameters=[{
+                        'command_timeout': 1.0
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 6. HARDWARE PWM MAPPER - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -72,13 +113,16 @@ def generate_launch_description():
                     package='auv_slam',
                     executable='pwm_mapper.py',
                     name='hardware_pwm_mapper',
-                    output='screen'
+                    output='screen',
+                    remappings=[
+                        ('/cmd_vel', '/cmd_vel_combined')  # Use combined commands
+                    ]
                 )
             ]
         ),
         
         # ============================================================
-        # 5. GATE DETECTOR - Delay 3s for camera to stabilize
+        # 7. GATE DETECTOR - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -93,7 +137,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 6. GATE NAVIGATOR - Delay 3s
+        # 8. GATE NAVIGATOR - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -108,7 +152,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 7. SAFETY MONITOR - Delay 2s
+        # 9. SAFETY MONITOR - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -119,7 +163,7 @@ def generate_launch_description():
                     name='safety_monitor',
                     output='screen',
                     parameters=[{
-                        'max_depth': 1.2,  # Pool is 1.37m, stay above 1.2m
+                        'max_depth': 1.2,
                         'min_depth': 0.1,
                         'pool_bounds_x': [-3.0, 3.0],
                         'pool_bounds_y': [-3.0, 3.0],
@@ -128,6 +172,9 @@ def generate_launch_description():
             ]
         ),
 
+        # ============================================================
+        # 10. SERIAL BRIDGE - Delay 1s
+        # ============================================================
         TimerAction(
             period=1.0,
             actions=[

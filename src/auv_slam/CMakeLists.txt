@@ -18,6 +18,8 @@ install(PROGRAMS
   scripts/serial_bridge.py
   scripts/ball_detector.py
   scripts/ball_follower.py
+  scripts/heave_pid_controller.py
+  scripts/cmd_mixer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

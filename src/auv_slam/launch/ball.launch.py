@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Autonomous Ball Following Mission Launch
-Launches all necessary nodes for ball tracking and following
+Autonomous Ball Following Mission Launch with Heave PID Control
+Includes automatic depth control via PID
 """
 
 from launch import LaunchDescription
@@ -61,7 +61,50 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 4. HARDWARE PWM MAPPER - Delay 2s
+        # 4. HEAVE PID CONTROLLER - Delay 1s
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='heave_pid_controller.py',
+                    name='heave_pid_controller',
+                    output='screen',
+                    parameters=[{
+                        'target_depth': 0.6,
+                        'depth_tolerance': 0.05,
+                        'kp': 1.2,
+                        'ki': 0.05,
+                        'kd': 0.3,
+                        'max_output': 0.6,
+                        'control_rate': 20.0,
+                        'enable_on_start': True
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 5. COMMAND MIXER - Delay 1s
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='cmd_mixer.py',
+                    name='command_mixer',
+                    output='screen',
+                    parameters=[{
+                        'command_timeout': 1.0
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 6. HARDWARE PWM MAPPER - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -70,13 +113,16 @@ def generate_launch_description():
                     package='auv_slam',
                     executable='pwm_mapper.py',
                     name='hardware_pwm_mapper',
-                    output='screen'
+                    output='screen',
+                    remappings=[
+                        ('/cmd_vel', '/cmd_vel_combined')
+                    ]
                 )
             ]
         ),
         
         # ============================================================
-        # 5. BALL DETECTOR - Delay 3s for camera stabilization
+        # 7. BALL DETECTOR - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -91,7 +137,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 6. BALL FOLLOWER - Delay 3s
+        # 8. BALL FOLLOWER - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -106,7 +152,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 7. SAFETY MONITOR - Delay 2s
+        # 9. SAFETY MONITOR - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -127,7 +173,7 @@ def generate_launch_description():
         ),
 
         # ============================================================
-        # 8. SERIAL BRIDGE - Delay 1s
+        # 10. SERIAL BRIDGE - Delay 1s
         # ============================================================
         TimerAction(
             period=1.0,
