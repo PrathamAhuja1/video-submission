@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hardware Safety Monitor - 8 Thruster Configuration
+Hardware Safety Monitor - 6 Thruster Configuration
 Monitors depth, orientation, and operational limits
 Emergency stop if safety limits exceeded
 Pool: 6.1m x 6.1m, depth 1.37m
@@ -33,8 +33,8 @@ class HardwareSafetyMonitor(Node):
         self.max_mission_time = self.get_parameter('max_mission_time').value
         self.sensor_timeout = self.get_parameter('sensor_timeout').value
         
-        # Neutral PWM for 8 thrusters
-        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480, 1500, 1500]
+        # Neutral PWM for 6 thrusters
+        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480]
         
         # State tracking
         self.current_depth = 0.0
@@ -58,7 +58,7 @@ class HardwareSafetyMonitor(Node):
         
         # Publishers
         self.emergency_pub = self.create_publisher(Bool, '/emergency_stop', 10)
-        self.emergency_pwm_pub = self.create_publisher(UInt16MultiArray, '/PWM8', 10)
+        self.emergency_pwm_pub = self.create_publisher(UInt16MultiArray, '/PWM6', 10)
         
         # Safety check timer (10Hz)
         self.create_timer(0.1, self.safety_check)
@@ -67,7 +67,7 @@ class HardwareSafetyMonitor(Node):
         self.emergency_timer = self.create_timer(0.02, self.emergency_stop_loop)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🛡️ Hardware Safety Monitor Active (8-Thruster)')
+        self.get_logger().info('🛡️ Hardware Safety Monitor Active (6-Thruster)')
         self.get_logger().info('='*70)
         self.get_logger().info(f'  Depth Range: {self.min_depth}m - {self.max_depth}m')
         self.get_logger().info(f'  Max Roll/Pitch: ±{self.max_roll}°')
@@ -215,7 +215,7 @@ class HardwareSafetyMonitor(Node):
             self.send_emergency_stop()
     
     def send_emergency_stop(self):
-        """Send neutral PWM to all 8 thrusters"""
+        """Send neutral PWM to all 6 thrusters"""
         emergency_msg = UInt16MultiArray()
         emergency_msg.data = self.NEUTRAL_PWM
         self.emergency_pwm_pub.publish(emergency_msg)

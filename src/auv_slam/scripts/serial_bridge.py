@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Serial Bridge: ROS2 /PWM8 → RP2040 UART
-Sends 8-channel PWM commands from ROS2 to the microcontroller
+Serial Bridge: ROS2 /PWM6 → RP2040 UART
+Sends 6-channel PWM commands from ROS2 to the microcontroller
 Receives depth telemetry from RP2040
 """
 
@@ -23,8 +23,8 @@ class SerialBridge(Node):
         port = self.get_parameter('serial_port').value
         baud = self.get_parameter('baud_rate').value
         
-        # Neutral PWM values for 8 thrusters (matches microcontroller)
-        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480, 1500, 1500]
+        # Neutral PWM values for 6 thrusters (matches microcontroller)
+        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480]
         
         # Connect to RP2040
         self.serial = None
@@ -36,7 +36,7 @@ class SerialBridge(Node):
         # Subscribe to PWM commands
         self.pwm_sub = self.create_subscription(
             UInt16MultiArray,
-            '/PWM8',
+            '/PWM6',
             self.pwm_callback,
             10
         )
@@ -56,7 +56,7 @@ class SerialBridge(Node):
         self.create_timer(1.0, self.check_connection)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🔗 Serial Bridge Active (8-Channel)')
+        self.get_logger().info('🔗 Serial Bridge Active (6-Channel)')
         self.get_logger().info('='*70)
     
     def connect_serial(self, port, baud):
@@ -111,16 +111,16 @@ class SerialBridge(Node):
     def pwm_callback(self, msg: UInt16MultiArray):
         """
         Send PWM values to RP2040
-        Format: 1500/1500/1530/1500/1500/1480/1500/1500\n (8 values)
+        Format: 1500/1500/1530/1500/1500/1480\n (6 values)
         """
         if not self.serial or not self.serial.is_open:
             self.get_logger().warn('Serial not connected, cannot send PWM')
             return
         
-        # Validate we have exactly 8 values
-        if len(msg.data) != 8:
+        # Validate we have exactly 6 values
+        if len(msg.data) != 6:
             self.get_logger().warn(
-                f'Invalid PWM data: expected 8 values, got {len(msg.data)}'
+                f'Invalid PWM data: expected 6 values, got {len(msg.data)}'
             )
             return
         
@@ -132,7 +132,7 @@ class SerialBridge(Node):
                 )
                 return
         
-        # Format: "val0/val1/.../val7\n"
+        # Format: "val0/val1/.../val5\n"
         pwm_str = '/'.join(str(int(v)) for v in msg.data) + '\n'
         
         try:
