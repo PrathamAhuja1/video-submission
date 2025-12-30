@@ -81,8 +81,8 @@ class HeavePIDController(Node):
         super().__init__('heave_pid_controller')
         
         # Declare parameters
-        self.declare_parameter('target_depth', 0.6)  # meters
-        self.declare_parameter('depth_tolerance', 0.05)  # meters
+        self.declare_parameter('target_depth', 1.0)  # meters
+        self.declare_parameter('depth_tolerance', 0.1)  # meters
         self.declare_parameter('kp', 1.2)
         self.declare_parameter('ki', 0.05)
         self.declare_parameter('kd', 0.3)
