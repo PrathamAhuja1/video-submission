@@ -2,44 +2,51 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import sys
 import os
-import pybind11
 
-class get_pybind_include(object):
-    def __str__(self):
-        return pybind11.get_include()
-
-# C++ PID source files
-pid_sources = [
-    'src/auv_slam/pid_cpp/wrapper.cpp',
-    'src/auv_slam/pid_cpp/heave_pid_rt.cpp',
-]
-
-# Include directories
-include_dirs = [
-    get_pybind_include(),
-    'src/auv_slam/pid_cpp',
-]
-
-# Compiler flags
-extra_compile_args = [
-    '-std=c++17',
-    '-O3',
-    '-fPIC',
-    '-Wall',
-]
-
-# Create extension module
-ext_modules = [
-    Extension(
-        'auv_slam.heave_pid_rt_py',
-        sources=pid_sources,
-        include_dirs=include_dirs,
-        language='c++',
-        extra_compile_args=extra_compile_args,
-    )
-]
+try:
+    import pybind11
+    PYBIND11_AVAILABLE = True
+except ImportError:
+    PYBIND11_AVAILABLE = False
+    print("WARNING: pybind11 not found. C++ PID will not be available.")
 
 package_name = 'auv_slam'
+
+# Only build C++ extension if pybind11 is available
+ext_modules = []
+if PYBIND11_AVAILABLE:
+    # C++ PID source files
+    pid_sources = [
+        'pid_cpp/wrapper.cpp',
+        'pid_cpp/heave_pid_rt.cpp',
+    ]
+
+    # Include directories
+    include_dirs = [
+        pybind11.get_include(),
+        'pid_cpp',
+    ]
+
+    # Compiler flags
+    extra_compile_args = [
+        '-std=c++17',
+        '-O3',
+        '-fPIC',
+        '-Wall',
+        '-Wno-unused-variable',
+        '-Wno-unused-parameter',
+    ]
+
+    # Create extension module
+    ext_modules = [
+        Extension(
+            'auv_slam.heave_pid_rt_py',
+            sources=pid_sources,
+            include_dirs=include_dirs,
+            language='c++',
+            extra_compile_args=extra_compile_args,
+        )
+    ]
 
 setup(
     name=package_name,
@@ -52,7 +59,7 @@ setup(
         ('share/' + package_name + '/launch', ['launch/autonomous_gate.launch.py']),
         ('share/' + package_name + '/launch', ['launch/ball.launch.py']),
     ],
-    install_requires=['setuptools', 'pybind11'],
+    install_requires=['setuptools'],
     zip_safe=False,
     maintainer='Your Name',
     maintainer_email='your_email@example.com',

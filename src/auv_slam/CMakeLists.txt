@@ -17,8 +17,10 @@ find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(Python3 COMPONENTS Development REQUIRED)
 
 # Find pybind11
+find_package(pybind11_vendor REQUIRED)
 find_package(pybind11 REQUIRED)
 
 # Python installation
@@ -38,17 +40,33 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install launch files
-install(DIRECTORY
-  launch/
-  DESTINATION share/${PROJECT_NAME}/launch
+# 1. Create the target first
+pybind11_add_module(heave_pid_rt_py
+  pid_cpp/wrapper.cpp
+  pid_cpp/heave_pid_rt.cpp
 )
 
+# 2. Then apply properties to it
+target_compile_features(heave_pid_rt_py PUBLIC cxx_std_17)
+target_include_directories(heave_pid_rt_py PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pid_cpp>
+)
+
+
+install(TARGETS heave_pid_rt_py
+  LIBRARY DESTINATION ${PYTHON_INSTALL_DIR}/auv_slam
+)
 
 install(DIRECTORY
   pid_cpp/
   DESTINATION include/${PROJECT_NAME}/pid_cpp
   FILES_MATCHING PATTERN "*.h"
+)
+
+# Install launch files
+install(DIRECTORY
+  launch/
+  DESTINATION share/${PROJECT_NAME}/launch
 )
 
 if(BUILD_TESTING)
