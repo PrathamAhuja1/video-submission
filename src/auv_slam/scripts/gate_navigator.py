@@ -31,7 +31,7 @@ class GateFlareNavigator(Node):
         self.state = self.STABILIZING
         
         # Navigation parameters
-        self.TARGET_DEPTH = 1.0
+        self.TARGET_DEPTH = 0.6
         self.DEPTH_TOLERANCE = 0.1
         
         # Gate parameters

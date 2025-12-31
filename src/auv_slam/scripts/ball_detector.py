@@ -61,14 +61,14 @@ class BallDetector(Node):
         # Subscriptions
         self.image_sub = self.create_subscription(
             Image,
-            '/camera_forward/image_raw',
+            '/image_raw',
             self.image_callback,
             qos_sensor
         )
         
         self.cam_info_sub = self.create_subscription(
             CameraInfo,
-            '/camera_forward/camera_info',
+            '/camera_info',
             self.cam_info_callback,
             qos_reliable
         )
