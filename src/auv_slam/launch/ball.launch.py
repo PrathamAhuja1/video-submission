@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Autonomous Ball Following Mission Launch with Heave PID Control
-Includes automatic depth control via PID
+Autonomous Ball Following Mission Launch - FIXED
+CRITICAL FIX: Removed depth_sensor_node conflict
 """
 
 from launch import LaunchDescription
@@ -31,22 +31,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 2. DEPTH SENSOR NODE
-        # ============================================================
-        Node(
-            package='depth_sensor_pkg',
-            executable='depth_sensor_node',
-            name='depth_sensor',
-            output='screen',
-            parameters=[{
-                'serial_port': '/dev/ttyS4',
-                'baud_rate': 115200,
-                'publish_rate': 20.0
-            }]
-        ),
-        
-        # ============================================================
-        # 3. VN100 IMU NODE
+        # 2. VN100 IMU NODE
         # ============================================================
         Node(
             package='vn100_reader',
@@ -58,6 +43,26 @@ def generate_launch_description():
                 'baudrate': 115200,
                 'publish_rate': 50.0
             }]
+        ),
+        
+        # ============================================================
+        # 3. SERIAL BRIDGE - Handles PWM + Depth Sensor
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200,
+                        'depth_offset': 0.4
+                    }]
+                )
+            ]
         ),
         
         # ============================================================
@@ -165,27 +170,10 @@ def generate_launch_description():
                     parameters=[{
                         'max_depth': 1.2,
                         'min_depth': 0.1,
+                        'max_roll': 30.0,
+                        'max_pitch': 30.0,
                         'pool_bounds_x': [-3.0, 3.0],
                         'pool_bounds_y': [-3.0, 3.0],
-                    }]
-                )
-            ]
-        ),
-
-        # ============================================================
-        # 10. SERIAL BRIDGE - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='serial_bridge.py',
-                    name='serial_bridge',
-                    output='screen',
-                    parameters=[{
-                        'serial_port': '/dev/ttyS4',
-                        'baud_rate': 115200
                     }]
                 )
             ]

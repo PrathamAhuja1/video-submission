@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-Autonomous Gate Detection Mission Launch
-Launches all necessary nodes for real hardware operation
+Autonomous Gate Detection Mission Launch - FIXED
+CRITICAL FIX: Removed depth_sensor_node to prevent serial port conflict
+Serial Bridge now handles both PWM and depth sensor
 """
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, TimerAction
-import os
+from launch.actions import TimerAction
 
 
 def generate_launch_description():
     
-    # Camera parameters file path
     camera_params_file = '/home/radxa-x4/Documents/usb_cam/config/params_1.yaml'
     
     return LaunchDescription([
@@ -33,22 +32,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 2. DEPTH SENSOR NODE - DISABLED (Conflict with Serial Bridge)
-        # ============================================================
-         Node(
-             package='depth_sensor_pkg',
-             executable='depth_sensor_node',
-             name='depth_sensor',
-             output='screen',
-             parameters=[{
-                 'serial_port': '/dev/ttyS4',
-                 'baud_rate': 115200,
-                 'publish_rate': 20.0
-             }]
-         ),
-        
-        # ============================================================
-        # 3. VN100 IMU NODE - Launch immediately
+        # 2. VN100 IMU NODE - Launch immediately
         # ============================================================
         Node(
             package='vn100_reader',
@@ -63,7 +47,28 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 4. HARDWARE PWM MAPPER - Delay 2s for sensor initialization
+        # 3. SERIAL BRIDGE - Handles PWM + Depth Sensor
+        # CRITICAL: This is the ONLY node using /dev/ttyS4
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200,
+                        'depth_offset': 0.4
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 4. HARDWARE PWM MAPPER - Delay 2s for sensor init
         # ============================================================
         TimerAction(
             period=2.0,
@@ -78,7 +83,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 5. GATE DETECTOR - Delay 3s for camera to stabilize
+        # 5. GATE DETECTOR - Delay 3s for camera stabilization
         # ============================================================
         TimerAction(
             period=3.0,
@@ -120,28 +125,11 @@ def generate_launch_description():
                     output='screen',
                     parameters=[{
                         'max_depth': 1.2,
-                        'min_depth': -5.0,
+                        'min_depth': 0.05,
+                        'max_roll': 30.0,
+                        'max_pitch': 30.0,
                         'pool_bounds_x': [-3.0, 3.0],
                         'pool_bounds_y': [-3.0, 3.0],
-                    }]
-                )
-            ]
-        ),
-
-        # ============================================================
-        # 8. SERIAL BRIDGE - Controls Thrusters & Reads Depth
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='serial_bridge.py',
-                    name='serial_bridge',
-                    output='screen',
-                    parameters=[{
-                        'serial_port': '/dev/ttyS4',
-                        'baud_rate': 115200
                     }]
                 )
             ]
