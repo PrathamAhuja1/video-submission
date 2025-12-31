@@ -21,7 +21,7 @@ class PWMMapper(Node):
     def __init__(self):
         super().__init__('pwm_mapper')
         
-        # PWM Configuration - Updated to 1100-1900 range
+        # PWM Configuration - Updated to 1300-1700 range
         self.PWM_MIN = 1300
         self.PWM_MAX = 1700
         
@@ -43,7 +43,7 @@ class PWMMapper(Node):
         self.BACK_RIGHT = 4     # Vertical
         self.FRONT_LEFT = 5     # Vertical
         
-        # Control gains - adjusted for 1100-1900 range (400 range instead of 400)
+        # Control gains - adjusted for 1300-1700 range (400 range instead of 400)
         # These gains map normalized velocity (-1 to +1) to PWM offset
         self.HEAVE_GAIN = 200.0    # Vertical movement
         self.SURGE_GAIN = 200.0    # Forward/backward

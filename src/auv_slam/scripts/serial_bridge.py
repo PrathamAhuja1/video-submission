@@ -128,11 +128,11 @@ class SerialBridge(Node):
             )
             return
         
-        # Validate PWM range (1100-1900)
+        # Validate PWM range (1300-1700)
         for i, val in enumerate(msg.data):
-            if val < 1100 or val > 1900:
+            if val < 1300 or val > 1700:
                 self.get_logger().warn(
-                    f'PWM[{i}] out of range: {val} (valid: 1100-1900)'
+                    f'PWM[{i}] out of range: {val} (valid: 1300-1700)'
                 )
                 return
         
