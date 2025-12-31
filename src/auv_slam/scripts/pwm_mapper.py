@@ -4,10 +4,10 @@ PWM Mapper - Maps Twist to 6 ESC channels
 6-Thruster Configuration (NO SWAY):
   [0] Back-Left (vertical)     - Heave/Pitch/Roll
   [1] Front-Right (vertical)   - Heave/Pitch/Roll
-  [2] Surge-Left              - Surge/Yaw (neutral: 1530)
+  [2] Surge-Left              - Surge/Yaw (neutral: 1500)
   [3] Surge-Right             - Surge/Yaw
   [4] Back-Right (vertical)    - Heave/Pitch/Roll
-  [5] Front-Left (vertical)    - Heave/Pitch/Roll (neutral: 1480)
+  [5] Front-Left (vertical)    - Heave/Pitch/Roll (neutral: 1500)
 """
 
 import rclpy
@@ -22,17 +22,17 @@ class PWMMapper(Node):
         super().__init__('pwm_mapper')
         
         # PWM Configuration - Updated to 1100-1900 range
-        self.PWM_MIN = 1100
-        self.PWM_MAX = 1900
+        self.PWM_MIN = 1300
+        self.PWM_MAX = 1700
         
         # Neutral values for each thruster (6 thrusters only)
         self.PWM_NEUTRAL = np.array([
             1500,  # [0] Back-Left (vertical)
             1500,  # [1] Front-Right (vertical)
-            1530,  # [2] Surge-Left (has +30 offset)
+            1500,  # [2] Surge-Left (has +30 offset)
             1500,  # [3] Surge-Right
             1500,  # [4] Back-Right (vertical)
-            1480,  # [5] Front-Left (vertical, has -20 offset)
+            1500,  # [5] Front-Left (vertical, has -20 offset)
         ], dtype=np.float32)
         
         # Thruster indices for clarity

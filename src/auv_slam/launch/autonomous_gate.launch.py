@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 """
-Autonomous Gate Detection Mission Launch with Heave PID Control
-Includes automatic depth control via PID
-FIXED: Removed duplicate depth_sensor_node (serial_bridge handles depth)
+Autonomous Gate Detection Mission Launch
+Launches all necessary nodes for real hardware operation
 """
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import TimerAction
+from launch.actions import ExecuteProcess, TimerAction
+import os
 
 
 def generate_launch_description():
     
+    # Camera parameters file path
     camera_params_file = '/home/radxa-x4/Documents/usb_cam/config/params_1.yaml'
     
     return LaunchDescription([
         
         # ============================================================
-        # 1. USB CAMERA NODE
+        # 1. USB CAMERA NODE - Launch immediately
         # ============================================================
         Node(
             package='usb_cam',
@@ -32,7 +33,22 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 2. VN100 IMU NODE (moved from #3)
+        # 2. DEPTH SENSOR NODE - DISABLED (Conflict with Serial Bridge)
+        # ============================================================
+         Node(
+             package='depth_sensor_pkg',
+             executable='depth_sensor_node',
+             name='depth_sensor',
+             output='screen',
+             parameters=[{
+                 'serial_port': '/dev/ttyS4',
+                 'baud_rate': 115200,
+                 'publish_rate': 20.0
+             }]
+         ),
+        
+        # ============================================================
+        # 3. VN100 IMU NODE - Launch immediately
         # ============================================================
         Node(
             package='vn100_reader',
@@ -47,70 +63,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 3. SERIAL BRIDGE - Delay 1s (handles PWM + depth telemetry)
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='serial_bridge.py',
-                    name='serial_bridge',
-                    output='screen',
-                    parameters=[{
-                        'serial_port': '/dev/ttyS4',
-                        'baud_rate': 115200,
-                        'depth_offset': 0.4  # Calibration offset
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 4. HEAVE PID CONTROLLER - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='heave_pid_controller.py',
-                    name='heave_pid_controller',
-                    output='screen',
-                    parameters=[{
-                        'target_depth': 1.0,        # 1m target depth
-                        'depth_tolerance': 0.05,    # 5cm tolerance
-                        'kp': 1.2,                  # Proportional gain
-                        'ki': 0.05,                 # Integral gain
-                        'kd': 0.3,                  # Derivative gain
-                        'max_output': 0.6,          # Max vertical velocity
-                        'control_rate': 20.0,       # 20Hz control
-                        'enable_on_start': True     # Auto-enable
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 5. COMMAND MIXER - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='cmd_mixer.py',
-                    name='command_mixer',
-                    output='screen',
-                    parameters=[{
-                        'command_timeout': 1.0
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 6. HARDWARE PWM MAPPER - Delay 2s
+        # 4. HARDWARE PWM MAPPER - Delay 2s for sensor initialization
         # ============================================================
         TimerAction(
             period=2.0,
@@ -119,10 +72,37 @@ def generate_launch_description():
                     package='auv_slam',
                     executable='pwm_mapper.py',
                     name='hardware_pwm_mapper',
-                    output='screen',
-                    remappings=[
-                        ('/cmd_vel', '/cmd_vel_combined')  # Use combined commands
-                    ]
+                    output='screen'
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 5. GATE DETECTOR - Delay 3s for camera to stabilize
+        # ============================================================
+        TimerAction(
+            period=3.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='gate_detector.py',
+                    name='gate_detector',
+                    output='screen'
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 6. GATE NAVIGATOR - Delay 3s
+        # ============================================================
+        TimerAction(
+            period=3.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='gate_navigator.py',
+                    name='gate_navigator',
+                    output='screen'
                 )
             ]
         ),
@@ -140,40 +120,29 @@ def generate_launch_description():
                     output='screen',
                     parameters=[{
                         'max_depth': 1.2,
-                        'min_depth': -0.1,  # Allow surface operation for testing
+                        'min_depth': -5.0,
                         'pool_bounds_x': [-3.0, 3.0],
                         'pool_bounds_y': [-3.0, 3.0],
                     }]
                 )
             ]
         ),
-        
+
         # ============================================================
-        # 8. GATE DETECTOR - Delay 3s
+        # 8. SERIAL BRIDGE - Controls Thrusters & Reads Depth
         # ============================================================
         TimerAction(
-            period=3.0,
+            period=1.0,
             actions=[
                 Node(
                     package='auv_slam',
-                    executable='gate_detector.py',
-                    name='gate_detector',
-                    output='screen'
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 9. GATE NAVIGATOR - Delay 3s
-        # ============================================================
-        TimerAction(
-            period=3.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='gate_navigator.py',
-                    name='gate_navigator',
-                    output='screen'
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200
+                    }]
                 )
             ]
         ),

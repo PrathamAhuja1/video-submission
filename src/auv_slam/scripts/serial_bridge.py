@@ -27,7 +27,7 @@ class SerialBridge(Node):
         self.depth_offset = self.get_parameter('depth_offset').value
         
         # Neutral PWM values for 6 thrusters (matches microcontroller)
-        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480]
+        self.NEUTRAL_PWM = [1500, 1500, 1500, 1500, 1500, 1500]
         
         # Connect to RP2040
         self.serial = None
@@ -115,7 +115,7 @@ class SerialBridge(Node):
     def pwm_callback(self, msg: UInt16MultiArray):
         """
         Send PWM values to RP2040
-        Format: 1500/1500/1530/1500/1500/1480\n (6 values)
+        Format: 1500/1500/1500/1500/1500/1500\n (6 values)
         """
         if not self.serial or not self.serial.is_open:
             self.get_logger().warn('Serial not connected, cannot send PWM')

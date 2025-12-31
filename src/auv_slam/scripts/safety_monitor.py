@@ -20,7 +20,7 @@ class HardwareSafetyMonitor(Node):
         
         # Safety parameters
         self.declare_parameter('max_depth', 1.2)  # Don't go below 1.2m
-        self.declare_parameter('min_depth', 0.1)  # Stay at least 10cm below surface
+        self.declare_parameter('min_depth', -5.0)  # Stay at least 10cm below surface
         self.declare_parameter('max_roll', 30.0)  # degrees
         self.declare_parameter('max_pitch', 30.0)  # degrees
         self.declare_parameter('max_mission_time', 300.0)  # 5 minutes
@@ -34,7 +34,7 @@ class HardwareSafetyMonitor(Node):
         self.sensor_timeout = self.get_parameter('sensor_timeout').value
         
         # Neutral PWM for 6 thrusters
-        self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480]
+        self.NEUTRAL_PWM = [1500, 1500, 1500, 1500, 1500, 1500]
         
         # State tracking
         self.current_depth = 0.0
