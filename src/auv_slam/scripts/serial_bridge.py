@@ -3,6 +3,7 @@
 Serial Bridge: ROS2 /PWM6 → RP2040 UART
 Sends 6-channel PWM commands from ROS2 to the microcontroller
 Receives depth telemetry from RP2040
+UPDATED: Added depth_offset parameter for calibration
 """
 
 import rclpy
@@ -19,9 +20,11 @@ class SerialBridge(Node):
         # Parameters
         self.declare_parameter('serial_port', '/dev/ttyS4')
         self.declare_parameter('baud_rate', 115200)
+        self.declare_parameter('depth_offset', 0.4)  # NEW: Calibration offset
         
         port = self.get_parameter('serial_port').value
         baud = self.get_parameter('baud_rate').value
+        self.depth_offset = self.get_parameter('depth_offset').value
         
         # Neutral PWM values for 6 thrusters (matches microcontroller)
         self.NEUTRAL_PWM = [1500, 1500, 1530, 1500, 1500, 1480]
@@ -57,6 +60,7 @@ class SerialBridge(Node):
         
         self.get_logger().info('='*70)
         self.get_logger().info('🔗 Serial Bridge Active (6-Channel)')
+        self.get_logger().info(f'   Depth Offset: {self.depth_offset:+.3f}m')
         self.get_logger().info('='*70)
     
     def connect_serial(self, port, baud):
@@ -162,6 +166,7 @@ class SerialBridge(Node):
         Read sensor data from RP2040
         Expected format: "pressure/temperature/depth\n"
         Example: "1013.25/22.5/0.42\n"
+        UPDATED: Apply depth offset calibration
         """
         if not self.serial or not self.serial.is_open:
             return
@@ -181,11 +186,14 @@ class SerialBridge(Node):
                     try:
                         pressure = float(parts[0])
                         temperature = float(parts[1])
-                        depth = float(parts[2])
+                        depth_raw = float(parts[2])
                         
-                        # Sanity checks
-                        if 0.0 <= depth <= 2.0 and 800.0 <= pressure <= 1200.0:
-                            # Publish depth
+                        # APPLY CALIBRATION OFFSET
+                        depth = depth_raw + self.depth_offset
+                        
+                        # Sanity checks (with calibrated depth)
+                        if -0.2 <= depth <= 2.0 and 800.0 <= pressure <= 1200.0:
+                            # Publish corrected depth
                             msg = Float32()
                             msg.data = depth
                             self.depth_pub.publish(msg)
@@ -196,15 +204,19 @@ class SerialBridge(Node):
                             # Periodic logging
                             if self.depth_rx_count % 100 == 0:
                                 self.get_logger().info(
-                                    f'RX[{self.depth_rx_count}]: Depth={depth:.3f}m, '
+                                    f'RX[{self.depth_rx_count}]: Depth={depth:.3f}m '
+                                    f'(raw={depth_raw:.3f}m + offset={self.depth_offset:.3f}m), '
                                     f'P={pressure:.1f}mbar, T={temperature:.1f}°C',
                                     throttle_duration_sec=5.0
                                 )
                         else:
-                            self.get_logger().warn(
-                                f'Sensor values out of range: depth={depth}, '
-                                f'pressure={pressure}'
-                            )
+                            # Only warn occasionally to avoid spam
+                            if self.depth_rx_count % 50 == 0:
+                                self.get_logger().warn(
+                                    f'Sensor values out of range: depth={depth:.2f}m '
+                                    f'(raw={depth_raw:.2f}m), pressure={pressure:.1f}mbar',
+                                    throttle_duration_sec=2.5
+                                )
                             
                     except ValueError as e:
                         self.get_logger().warn(f'Failed to parse sensor data: {line}')

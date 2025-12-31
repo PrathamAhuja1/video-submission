@@ -2,6 +2,7 @@
 """
 Autonomous Gate Detection Mission Launch with Heave PID Control
 Includes automatic depth control via PID
+FIXED: Removed duplicate depth_sensor_node (serial_bridge handles depth)
 """
 
 from launch import LaunchDescription
@@ -31,22 +32,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 2. DEPTH SENSOR NODE
-        # ============================================================
-        Node(
-            package='depth_sensor_pkg',
-            executable='depth_sensor_node',
-            name='depth_sensor',
-            output='screen',
-            parameters=[{
-                'serial_port': '/dev/ttyS4',
-                'baud_rate': 115200,
-                'publish_rate': 20.0
-            }]
-        ),
-        
-        # ============================================================
-        # 3. VN100 IMU NODE
+        # 2. VN100 IMU NODE (moved from #3)
         # ============================================================
         Node(
             package='vn100_reader',
@@ -61,6 +47,26 @@ def generate_launch_description():
         ),
         
         # ============================================================
+        # 3. SERIAL BRIDGE - Delay 1s (handles PWM + depth telemetry)
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200,
+                        'depth_offset': 0.4  # Calibration offset
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
         # 4. HEAVE PID CONTROLLER - Delay 1s
         # ============================================================
         TimerAction(
@@ -72,7 +78,7 @@ def generate_launch_description():
                     name='heave_pid_controller',
                     output='screen',
                     parameters=[{
-                        'target_depth': 1.0,        # 60cm target depth
+                        'target_depth': 1.0,        # 1m target depth
                         'depth_tolerance': 0.05,    # 5cm tolerance
                         'kp': 1.2,                  # Proportional gain
                         'ki': 0.05,                 # Integral gain
@@ -122,7 +128,28 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 7. GATE DETECTOR - Delay 3s
+        # 7. SAFETY MONITOR - Delay 2s
+        # ============================================================
+        TimerAction(
+            period=2.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='safety_monitor.py',
+                    name='safety_monitor',
+                    output='screen',
+                    parameters=[{
+                        'max_depth': 1.2,
+                        'min_depth': -0.1,  # Allow surface operation for testing
+                        'pool_bounds_x': [-3.0, 3.0],
+                        'pool_bounds_y': [-3.0, 3.0],
+                    }]
+                )
+            ]
+        ),
+        
+        # ============================================================
+        # 8. GATE DETECTOR - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -137,7 +164,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 8. GATE NAVIGATOR - Delay 3s
+        # 9. GATE NAVIGATOR - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -147,46 +174,6 @@ def generate_launch_description():
                     executable='gate_navigator.py',
                     name='gate_navigator',
                     output='screen'
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 9. SAFETY MONITOR - Delay 2s
-        # ============================================================
-        TimerAction(
-            period=2.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='safety_monitor.py',
-                    name='safety_monitor',
-                    output='screen',
-                    parameters=[{
-                        'max_depth': 1.2,
-                        'min_depth': 0.1,
-                        'pool_bounds_x': [-3.0, 3.0],
-                        'pool_bounds_y': [-3.0, 3.0],
-                    }]
-                )
-            ]
-        ),
-
-        # ============================================================
-        # 10. SERIAL BRIDGE - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='serial_bridge.py',
-                    name='serial_bridge',
-                    output='screen',
-                    parameters=[{
-                        'serial_port': '/dev/ttyS4',
-                        'baud_rate': 115200
-                    }]
                 )
             ]
         ),
