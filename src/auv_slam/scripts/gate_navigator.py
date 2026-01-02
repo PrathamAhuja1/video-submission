@@ -50,7 +50,7 @@ class GateFlareNavigator(Node):
         self.APPROACH_SPEED_MIN = 0.5    # 1600 PWM
         self.ALIGNMENT_SPEED_MAX = 0.45  # 1590 PWM
         self.ALIGNMENT_SPEED_MIN = 0.2   # 1540 PWM
-        self.PASSING_SPEED = 1.0         # 1700 PWM (max speed!)
+        self.PASSING_SPEED = 1.0         # 1700 PWM
         self.AVOID_SPEED = 0.6           # 1620 PWM
         self.RECOVERY_SPEED = 0.4        # 1580 PWM
         

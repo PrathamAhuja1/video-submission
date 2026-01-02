@@ -94,11 +94,11 @@ def generate_launch_description():
                     name='test_sequence',
                     output='screen',
                     parameters=[{
-                        'heave_speed': 0.3,
-                        'surge_speed': 0.4,
-                        'yaw_speed': 0.5,
+                        'heave_speed': 0.9,   # 1680 PWM
+                        'surge_speed': 0.95,  # 1690 PWM  
+                        'yaw_speed': 0.8,     # ~1620 PWM
                         'heave_down_duration': 4.0,  # Heave down for 4 seconds
-                        'heave_up_duration': 3.0,    # Heave up for 3 seconds
+                        'heave_up_duration': 2.5,    # Heave up for 3 seconds
                         'test_duration': 3.0,        # Other tests for 3 seconds each
                         'pause_duration': 1.0
                     }]
