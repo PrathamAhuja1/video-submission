@@ -29,10 +29,12 @@ class PWMMapper(Node):
         self.PWM_NEUTRAL = np.array([
             1500,  # [0] Back-Left (vertical)
             1500,  # [1] Front-Right (vertical)
-            1500,  # [2] Surge-Left (has +30 offset)
+            1530,  # [2] Surge-Left (has +30 offset)
             1500,  # [3] Surge-Right
             1500,  # [4] Back-Right (vertical)
-            1500,  # [5] Front-Left (vertical, has -20 offset)
+            1480,  # [5] Front-Left (vertical, has -20 offset)
+            1500,
+            1500
         ], dtype=np.float32)
         
         # Thruster indices for clarity
