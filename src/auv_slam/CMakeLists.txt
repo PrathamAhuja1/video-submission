@@ -38,6 +38,7 @@ install(PROGRAMS
   scripts/heave_pid_controller.py
   scripts/cmd_mixer.py
   scripts/test.py
+  scripts/ros_gst_udp.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
