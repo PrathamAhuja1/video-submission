@@ -14,6 +14,9 @@ from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
 from collections import deque
+from ultralytics import YOLO
+import os
+from ament_index_python.packages import get_package_share_directory
 
 
 class CombinedDetector(Node):
@@ -23,21 +26,27 @@ class CombinedDetector(Node):
         self.camera_matrix = None
         
         # Gate specifications
-        self.gate_width_meters = 1.5
-        self.gate_height_meters = 1.5
+        self.gate_width_meters = 1.12
+        self.gate_height_meters = 0.62
         
         # Flare specifications
-        self.flare_width_meters = 0.3
+        self.flare_width_meters = 0.15
         
         # HSV ranges for WHITE gate detection
-        self.white_lower = np.array([0, 0, 180])
-        self.white_upper = np.array([180, 40, 255])
+    #    self.white_lower = np.array([0, 0, 180])
+    #    self.white_upper = np.array([180, 40, 255])
         
-        # HSV ranges for RED flare detection (two ranges for red wrap-around)
-        self.red_lower1 = np.array([0, 100, 50])
-        self.red_upper1 = np.array([10, 255, 255])
-        self.red_lower2 = np.array([160, 100, 50])
-        self.red_upper2 = np.array([180, 255, 255])
+
+    #    self.red_lower1 = np.array([0, 100, 50])
+    #    self.red_upper1 = np.array([10, 255, 255])
+    #    self.red_lower2 = np.array([160, 100, 50])
+    #    self.red_upper2 = np.array([180, 255, 255])
+
+
+        self.gate_model = YOLO('/home/pratham/Documents/video-submission/src/auv_slam/models/gate_best.pt') 
+        self.flare_model = YOLO('/home/pratham/Documents/video-submission/src/auv_slam/models/flare_best.pt')
+        self.gate_conf_thresh = 0.8
+        self.flare_conf_thresh = 0.8
         
         # Detection parameters
         self.min_gate_area = 500
@@ -124,95 +133,53 @@ class CombinedDetector(Node):
         except CvBridgeError as e:
             self.get_logger().error(f'CV Bridge error: {e}')
             return
-        
-        # Convert to HSV
-        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+            
         debug_img = cv_image.copy()
         h, w = cv_image.shape[:2]
-        
+
         # ========================================
-        # GATE DETECTION (WHITE)
+        # 1. GATE DETECTION (YOLO)
         # ========================================
-        white_mask = cv2.inRange(hsv_image, self.white_lower, self.white_upper)
-        kernel = np.ones((5, 5), np.uint8)
-        white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_CLOSE, kernel)
-        white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, kernel)
-        
-        gate_contours, _ = cv2.findContours(white_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         gate_detected = False
         gate_alignment_error = 0.0
         gate_distance = 999.0
         gate_center_x = w // 2
         gate_center_y = h // 2
         
-        best_gate = None
-        best_gate_score = 0
+        # Run inference
+        gate_results = self.gate_model.predict(cv_image, conf=self.gate_conf_thresh, verbose=False)
         
-        for cnt in gate_contours:
-            area = cv2.contourArea(cnt)
-            if area < self.min_gate_area:
-                continue
+        if len(gate_results[0].boxes) > 0:
+            # Get the box with highest confidence
+            best_box = max(gate_results[0].boxes, key=lambda x: x.conf)
             
-            x, y, w_box, h_box = cv2.boundingRect(cnt)
-            if w_box == 0 or h_box == 0:
-                continue
+            # Extract box coordinates (xywh format is easier for center/width)
+            x_c, y_c, box_w, box_h = best_box.xywh[0].cpu().numpy()
+            x1, y1, x2, y2 = best_box.xyxy[0].cpu().numpy() # For drawing
             
-            aspect_ratio = float(h_box) / w_box
-            if 0.7 < aspect_ratio < 1.5:
-                aspect_score = 1.0 - abs(1.0 - aspect_ratio)
-                score = area * aspect_score
-                
-                if score > best_gate_score:
-                    M = cv2.moments(cnt)
-                    if M["m00"] > 0:
-                        cx = int(M["m10"] / M["m00"])
-                        cy = int(M["m01"] / M["m00"])
-                        
-                        best_gate = {
-                            'center': (cx, cy),
-                            'bbox': (x, y, w_box, h_box),
-                            'area': area,
-                            'contour': cnt
-                        }
-                        best_gate_score = score
-        
-        # Process best gate
-        if best_gate is not None:
             gate_detected = True
-            gate_center_x, gate_center_y = best_gate['center']
-            x, y, w_box, h_box = best_gate['bbox']
+            gate_center_x = int(x_c)
+            gate_center_y = int(y_c)
             
+            # Calculate alignment error (-1.0 to 1.0)
             pixel_error = gate_center_x - (w / 2)
             gate_alignment_error = pixel_error / (w / 2)
             
-            if w_box > 20 and h_box > 20:
-                distance_from_width = (self.gate_width_meters * self.fx) / w_box
-                distance_from_height = (self.gate_height_meters * self.fy) / h_box
-                gate_distance = (distance_from_width + distance_from_height) / 2
+            # Calculate Distance (using known physical width)
+            # Distance = (Real Width * Focal Length) / Pixel Width
+            if box_w > 0:
+                gate_distance = (self.gate_width_meters * self.fx) / box_w
+                # Clamp distance to avoid noise spikes
                 gate_distance = max(0.3, min(gate_distance, 20.0))
             
-            # Draw gate visualization
-            cv2.rectangle(debug_img, (x, y), (x+w_box, y+h_box), (0, 255, 0), 3)
-            cv2.circle(debug_img, (gate_center_x, gate_center_y), 15, (0, 255, 0), -1)
-            cv2.circle(debug_img, (gate_center_x, gate_center_y), 17, (255, 255, 255), 2)
-            cv2.line(debug_img, (gate_center_x, 0), (gate_center_x, h), (0, 255, 0), 2)
+            # Visualization
+            cv2.rectangle(debug_img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)
             cv2.putText(debug_img, f"GATE {gate_distance:.2f}m", 
-                       (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        
+                       (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
         # ========================================
-        # FLARE DETECTION (RED)
+        # 2. FLARE DETECTION (YOLO)
         # ========================================
-        mask1 = cv2.inRange(hsv_image, self.red_lower1, self.red_upper1)
-        mask2 = cv2.inRange(hsv_image, self.red_lower2, self.red_upper2)
-        red_mask = cv2.bitwise_or(mask1, mask2)
-        
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
-        red_mask = cv2.GaussianBlur(red_mask, (5, 5), 0)
-        
-        flare_contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         flare_detected = False
         flare_direction = 0.0
         flare_distance = 999.0
@@ -220,71 +187,39 @@ class CombinedDetector(Node):
         flare_center_y = h // 2
         flare_in_danger = False
         
-        best_flare = None
-        best_flare_area = 0
+        # Run inference
+        flare_results = self.flare_model.predict(cv_image, conf=self.flare_conf_thresh, verbose=False)
         
-        for cnt in flare_contours:
-            area = cv2.contourArea(cnt)
-            if area < self.min_flare_area:
-                continue
+        if len(flare_results[0].boxes) > 0:
+            # Get the largest/closest flare (biggest width) or highest confidence
+            # Usually closest is safest to avoid
+            best_flare = max(flare_results[0].boxes, key=lambda x: x.xywh[0][2]) 
             
-            if area > best_flare_area:
-                x, y, w_box, h_box = cv2.boundingRect(cnt)
-                if w_box == 0 or h_box == 0:
-                    continue
-                
-                M = cv2.moments(cnt)
-                if M["m00"] > 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    
-                    best_flare = {
-                        'center': (cx, cy),
-                        'bbox': (x, y, w_box, h_box),
-                        'area': area,
-                        'contour': cnt
-                    }
-                    best_flare_area = area
-        
-        # Process best flare
-        if best_flare is not None:
+            x_c, y_c, box_w, box_h = best_flare.xywh[0].cpu().numpy()
+            x1, y1, x2, y2 = best_flare.xyxy[0].cpu().numpy()
+            
             flare_detected = True
-            flare_center_x, flare_center_y = best_flare['center']
-            x, y, w_box, h_box = best_flare['bbox']
+            flare_center_x = int(x_c)
+            flare_center_y = int(y_c)
             
+            # Calculate direction for avoidance
             pixel_offset = flare_center_x - (w / 2)
             flare_direction = pixel_offset / (w / 2)
             
-            if w_box > 20:
-                flare_distance = (self.flare_width_meters * self.fx) / w_box
+            # Calculate Distance
+            if box_w > 0:
+                flare_distance = (self.flare_width_meters * self.fx) / box_w
                 flare_distance = max(0.2, min(flare_distance, 20.0))
             
+            # Danger check (YOLO boxes are tighter than contours, so 1.5m is safer)
             flare_in_danger = flare_distance < 1.5
             
-            # Color based on danger level
-            if flare_in_danger:
-                flare_color = (0, 0, 255)  # Red
-                status_text = "⚠️ DANGER"
-            elif flare_distance < 3.0:
-                flare_color = (0, 165, 255)  # Orange
-                status_text = "⚠️ WARNING"
-            else:
-                flare_color = (0, 255, 255)  # Yellow
-                status_text = "FLARE"
+            # Visualization colors
+            color = (0, 0, 255) if flare_in_danger else (0, 165, 255)
             
-            # Draw flare visualization
-            cv2.rectangle(debug_img, (x, y), (x+w_box, y+h_box), flare_color, 3)
-            cv2.circle(debug_img, (flare_center_x, flare_center_y), 12, flare_color, -1)
-            cv2.circle(debug_img, (flare_center_x, flare_center_y), 14, (255, 255, 255), 2)
-            cv2.line(debug_img, (flare_center_x, 0), (flare_center_x, h), flare_color, 2)
-            cv2.putText(debug_img, f"{status_text} {flare_distance:.2f}m", 
-                       (x, y+h_box+25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, flare_color, 2)
-            
-            # Danger zone indicator
-            if flare_in_danger:
-                cv2.rectangle(debug_img, (0, 0), (w, h), (0, 0, 255), 10)
-                cv2.putText(debug_img, "!!! DANGER !!!", 
-                           (w//2-100, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+            cv2.rectangle(debug_img, (int(x1), int(y1)), (int(x2), int(y2)), color, 3)
+            cv2.putText(debug_img, f"FLARE {flare_distance:.2f}m", 
+                       (int(x1), int(y2)+25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
         # ========================================
         # COMMON VISUALIZATION
@@ -328,7 +263,7 @@ class CombinedDetector(Node):
         
         # Publish flare data
         self.flare_detected_pub.publish(Bool(data=flare_confirmed))
-        self.flare_danger_pub.publish(Bool(data=flare_in_danger))
+        self.flare_danger_pub.publish(Bool(data=bool(flare_in_danger)))
         if flare_confirmed:
             self.flare_direction_pub.publish(Float32(data=float(flare_direction)))
             self.flare_distance_pub.publish(Float32(data=float(flare_distance)))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Autonomous Ball Following Mission Launch - FIXED
-CRITICAL FIX: Removed depth_sensor_node conflict
+Autonomous Ball Following Mission Launch
+Launches all necessary nodes for ball tracking and following
 """
 
 from launch import LaunchDescription
@@ -25,13 +25,28 @@ def generate_launch_description():
             output='screen',
             parameters=[camera_params_file],
             remappings=[
-                ('/image_raw', '/camera_forward/image_raw'),
-                ('/camera_info', '/camera_forward/camera_info'),
+                ('/image_raw', '/image_raw'),
+                ('/camera_info', '/camera_info'),
             ]
         ),
         
         # ============================================================
-        # 2. VN100 IMU NODE
+        # 2. DEPTH SENSOR NODE
+        # ============================================================
+        Node(
+            package='depth_sensor_pkg',
+            executable='depth_sensor_node',
+            name='depth_sensor',
+            output='screen',
+            parameters=[{
+                'serial_port': '/dev/ttyS4',
+                'baud_rate': 115200,
+                'publish_rate': 20.0
+            }]
+        ),
+        
+        # ============================================================
+        # 3. VN100 IMU NODE
         # ============================================================
         Node(
             package='vn100_reader',
@@ -46,70 +61,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 3. SERIAL BRIDGE - Handles PWM + Depth Sensor
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='serial_bridge.py',
-                    name='serial_bridge',
-                    output='screen',
-                    parameters=[{
-                        'serial_port': '/dev/ttyS4',
-                        'baud_rate': 115200,
-                        'depth_offset': 0.4
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 4. HEAVE PID CONTROLLER - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='heave_pid_controller.py',
-                    name='heave_pid_controller',
-                    output='screen',
-                    parameters=[{
-                        'target_depth': 1.0,
-                        'depth_tolerance': 0.05,
-                        'kp': 1.2,
-                        'ki': 0.05,
-                        'kd': 0.3,
-                        'max_output': 0.6,
-                        'control_rate': 20.0,
-                        'enable_on_start': True
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 5. COMMAND MIXER - Delay 1s
-        # ============================================================
-        TimerAction(
-            period=1.0,
-            actions=[
-                Node(
-                    package='auv_slam',
-                    executable='cmd_mixer.py',
-                    name='command_mixer',
-                    output='screen',
-                    parameters=[{
-                        'command_timeout': 1.0
-                    }]
-                )
-            ]
-        ),
-        
-        # ============================================================
-        # 6. HARDWARE PWM MAPPER - Delay 2s
+        # 4. HARDWARE PWM MAPPER - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -118,16 +70,13 @@ def generate_launch_description():
                     package='auv_slam',
                     executable='pwm_mapper.py',
                     name='hardware_pwm_mapper',
-                    output='screen',
-                    remappings=[
-                        ('/cmd_vel', '/cmd_vel_combined')
-                    ]
+                    output='screen'
                 )
             ]
         ),
         
         # ============================================================
-        # 7. BALL DETECTOR - Delay 3s
+        # 5. BALL DETECTOR - Delay 3s for camera stabilization
         # ============================================================
         TimerAction(
             period=3.0,
@@ -142,7 +91,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 8. BALL FOLLOWER - Delay 3s
+        # 6. BALL FOLLOWER - Delay 3s
         # ============================================================
         TimerAction(
             period=3.0,
@@ -157,7 +106,7 @@ def generate_launch_description():
         ),
         
         # ============================================================
-        # 9. SAFETY MONITOR - Delay 2s
+        # 7. SAFETY MONITOR - Delay 2s
         # ============================================================
         TimerAction(
             period=2.0,
@@ -170,10 +119,27 @@ def generate_launch_description():
                     parameters=[{
                         'max_depth': 1.2,
                         'min_depth': 0.1,
-                        'max_roll': 30.0,
-                        'max_pitch': 30.0,
                         'pool_bounds_x': [-3.0, 3.0],
                         'pool_bounds_y': [-3.0, 3.0],
+                    }]
+                )
+            ]
+        ),
+
+        # ============================================================
+        # 8. SERIAL BRIDGE - Delay 1s
+        # ============================================================
+        TimerAction(
+            period=1.0,
+            actions=[
+                Node(
+                    package='auv_slam',
+                    executable='serial_bridge.py',
+                    name='serial_bridge',
+                    output='screen',
+                    parameters=[{
+                        'serial_port': '/dev/ttyS4',
+                        'baud_rate': 115200
                     }]
                 )
             ]

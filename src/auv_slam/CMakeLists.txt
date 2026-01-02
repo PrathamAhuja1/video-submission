@@ -37,6 +37,7 @@ install(PROGRAMS
   scripts/ball_follower.py
   scripts/heave_pid_controller.py
   scripts/cmd_mixer.py
+  scripts/test.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

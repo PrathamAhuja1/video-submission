@@ -25,14 +25,20 @@ class BallDetector(Node):
         # Ball specifications (cricket ball size: ~7.2cm diameter)
         self.ball_diameter_meters = 0.06318
         
-        # HSV ranges for ORANGE ball in underwater conditions
-        # Underwater: orange shifts toward darker red-orange
-        # Lower range: Dark orange to red-orange
-        self.orange_lower1 = np.array([0, 100, 50])    # Dark red-orange
-        self.orange_upper1 = np.array([15, 255, 200])
-        # Upper range: Orange to yellow-orange
-        self.orange_lower2 = np.array([10, 120, 60])
-        self.orange_upper2 = np.array([25, 255, 220])
+
+    #    self.orange_lower1 = np.array([0, 50, 70]) 
+    #    self.orange_upper1 = np.array([10, 160, 250])
+
+
+    #    self.orange_lower2 = np.array([170, 50, 70])
+    #    self.orange_upper2 = np.array([180, 160, 250])
+        self.pink_lower1 = np.array([170,80,107])
+        self.pink_upper1 = np.array([179,238,255])
+
+        self.pink_lower2 = np.array([170,80,107])
+        self.pink_upper2 = np.array([179,238,255])
+
+        # Lower=[170,80,107], Upper=[179,238,255]
         
         # Detection parameters
         self.min_contour_area = 200
@@ -79,6 +85,7 @@ class BallDetector(Node):
         self.distance_pub = self.create_publisher(Float32, '/ball/estimated_distance', 10)
         self.ball_center_pub = self.create_publisher(Point, '/ball/center_point', 10)
         self.debug_pub = self.create_publisher(Image, '/ball/debug_image', 10)
+        self.mask_pub = self.create_publisher(Image, '/ball/mask_image', 10)
         self.status_pub = self.create_publisher(String, '/ball/status', 10)
         
         self.get_logger().info('='*70)
@@ -116,9 +123,17 @@ class BallDetector(Node):
         h, w = cv_image.shape[:2]
         
         # Create orange masks (two ranges to cover full orange spectrum)
-        mask1 = cv2.inRange(hsv_image, self.orange_lower1, self.orange_upper1)
-        mask2 = cv2.inRange(hsv_image, self.orange_lower2, self.orange_upper2)
+        mask1 = cv2.inRange(hsv_image, self.pink_lower1, self.pink_upper1)
+        mask2 = cv2.inRange(hsv_image, self.pink_lower2, self.pink_upper2)
         orange_mask = cv2.bitwise_or(mask1, mask2)
+    #    orange_mask = mask1
+
+        try:
+            mask_msg = self.bridge.cv2_to_imgmsg(orange_mask, "mono8")
+            mask_msg.header = msg.header
+            self.mask_pub.publish(mask_msg)
+        except CvBridgeError as e:
+            self.get_logger().error(f'Debug image error: {e}')
         
         # Morphological operations
         kernel = np.ones((5, 5), np.uint8)
@@ -127,6 +142,7 @@ class BallDetector(Node):
         
         # Gaussian blur to reduce noise
         orange_mask = cv2.GaussianBlur(orange_mask, (5, 5), 0)
+
         
         # Find contours
         contours, _ = cv2.findContours(orange_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

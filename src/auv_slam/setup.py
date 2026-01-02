@@ -76,6 +76,7 @@ setup(
             'ball_follower.py = auv_slam.ball_follower:main',
             'heave_pid_controller.py = auv_slam.heave_pid_controller:main',
             'cmd_mixer.py = auv_slam.cmd_mixer:main',
+            'test.py = auv_slam.test:main'
         ],
     },
     ext_modules=ext_modules,
