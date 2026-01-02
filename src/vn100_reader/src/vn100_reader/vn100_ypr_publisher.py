@@ -11,7 +11,7 @@ class VN100YPRPublisher(Node):
     def __init__(self):
         super().__init__('vn100_ypr_publisher')
 
-        self.declare_parameter('port', '/dev/ttyUSB0')
+        self.declare_parameter('port', '/dev/ttyUSB1')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('publish_rate', 50.0)
 

@@ -56,7 +56,7 @@ def generate_launch_description():
             name='vn100_imu',
             output='screen',
             parameters=[{
-                'port': '/dev/ttyUSB0',
+                'port': '/dev/ttyUSB1',
                 'baudrate': 115200,
                 'publish_rate': 50.0
             }]
