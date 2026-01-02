@@ -12,7 +12,7 @@ class DepthSensorNode(Node):
         super().__init__('depth_sensor_node')
         
         # Declare parameters
-        self.declare_parameter('serial_port', '/dev/ttyS4')
+        self.declare_parameter('serial_port', '/dev/ttyUSB0')
         self.declare_parameter('baud_rate', 115200)
         self.declare_parameter('publish_rate', 10.0)
         

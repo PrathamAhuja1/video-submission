@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Ball Follower - Autonomous ball tracking and following
-Moves toward and follows the orange ball underwater
+HIGH THRUST VERSION - Aggressive speeds with distance-based ramping
 """
 
 import rclpy
@@ -36,19 +36,19 @@ class BallFollower(Node):
         self.CLOSE_DISTANCE = 0.5       # Close following
         self.REACHED_DISTANCE = 0.1     # Ball reached
         
-        # Speed parameters
-        self.SEARCH_SPEED = 0.25
-        self.TRACKING_SPEED = 0.4
-        self.APPROACH_SPEED = 0.5
-        self.CLOSE_SPEED = 0.2
+        self.SEARCH_SPEED = 0.75        # 1650 PWM
+        self.TRACKING_SPEED = 0.95      # 1690 PWM
+        self.APPROACH_SPEED_MAX = 0.85  # 1670 PWM
+        self.APPROACH_SPEED_MIN = 0.45  # 1590 PWM
+        self.CLOSE_SPEED_MAX = 0.35     # 1570 PWM
+        self.CLOSE_SPEED_MIN = 0.15     # 1530 PWM
         
-        # Control gains
-        self.SEARCH_YAW_RATE = 0.3
-        self.TRACKING_YAW_GAIN = 2.5    # Aggressive turning for tracking
-        self.APPROACH_YAW_GAIN = 2.0
-        self.CLOSE_YAW_GAIN = 1.5
+        self.SEARCH_YAW_RATE = 0.5
+        self.TRACKING_YAW_GAIN = 3.5    
+        self.APPROACH_YAW_GAIN = 3.0    
+        self.CLOSE_YAW_GAIN = 2.5
         
-        self.ALIGNMENT_THRESHOLD = 0.1  # Acceptable alignment error
+        self.ALIGNMENT_THRESHOLD = 0.1
         
         # State variables
         self.ball_detected = False
@@ -60,17 +60,15 @@ class BallFollower(Node):
         
         self.state_start_time = time.time()
         self.last_detection_time = 0.0
-        self.detection_timeout = 3.0  # Return to search after 3s without ball
+        self.detection_timeout = 3.0
         
-        # Subscriptions - Ball detection
+        # Subscriptions
         self.create_subscription(Bool, '/ball/detected', 
                                 self.ball_detected_callback, 10)
         self.create_subscription(Float32, '/ball/alignment_error',
                                 self.alignment_callback, 10)
         self.create_subscription(Float32, '/ball/estimated_distance',
                                 self.distance_callback, 10)
-        
-        # Subscriptions - Sensors
         self.create_subscription(Float32, '/depth',
                                 self.depth_callback, 10)
         self.create_subscription(Vector3, '/vn100/ypr',
@@ -83,16 +81,12 @@ class BallFollower(Node):
         self.create_timer(0.05, self.control_loop)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🏀 Ball Follower Started')
+        self.get_logger().info('🏀 Ball Follower - HIGH THRUST MODE')
         self.get_logger().info('='*70)
-        self.get_logger().info(f'  Target Depth: {self.TARGET_DEPTH}m')
-        self.get_logger().info(f'  Approach: {self.APPROACH_DISTANCE}m')
-        self.get_logger().info(f'  Close: {self.CLOSE_DISTANCE}m')
+        self.get_logger().info(f'  Search Speed: {self.SEARCH_SPEED} (PWM ~{1500 + int(self.SEARCH_SPEED*200)})')
+        self.get_logger().info(f'  Tracking Speed: {self.TRACKING_SPEED} (PWM ~{1500 + int(self.TRACKING_SPEED*200)})')
+        self.get_logger().info(f'  Approach Speed: {self.APPROACH_SPEED_MIN}-{self.APPROACH_SPEED_MAX}')
         self.get_logger().info('='*70)
-    
-    # ========================================
-    # CALLBACKS
-    # ========================================
     
     def ball_detected_callback(self, msg: Bool):
         was_detected = self.ball_detected
@@ -116,10 +110,6 @@ class BallFollower(Node):
     def ypr_callback(self, msg: Vector3):
         self.current_yaw = math.radians(msg.x)
     
-    # ========================================
-    # CONTROL LOOP
-    # ========================================
-    
     def control_loop(self):
         cmd = Twist()
         
@@ -142,10 +132,6 @@ class BallFollower(Node):
         
         self.cmd_vel_pub.publish(cmd)
     
-    # ========================================
-    # DEPTH CONTROL
-    # ========================================
-    
     def compute_depth_control(self) -> float:
         depth_error = self.TARGET_DEPTH - self.current_depth
         
@@ -154,10 +140,6 @@ class BallFollower(Node):
         
         z_cmd = depth_error * 0.8
         return max(-0.6, min(z_cmd, 0.6))
-    
-    # ========================================
-    # STATE HANDLERS
-    # ========================================
     
     def stabilizing(self, cmd: Twist) -> Twist:
         """Wait for depth stabilization"""
@@ -170,24 +152,19 @@ class BallFollower(Node):
         if depth_stable and elapsed > 3.0:
             self.get_logger().info('✅ Stabilized - Starting ball search')
             self.transition_to(self.SEARCHING)
-        elif int(elapsed) % 2 == 0:
-            self.get_logger().info(
-                f'⏳ Stabilizing... Depth: {self.current_depth:.2f}m',
-                throttle_duration_sec=1.9
-            )
         
         return cmd
     
     def searching(self, cmd: Twist) -> Twist:
-        """Search for ball with rotation"""
+        """Search for ball with FAST rotation"""
         
         if self.ball_detected and self.estimated_distance < 999:
             self.get_logger().info('🎯 Ball found - Starting tracking')
             self.transition_to(self.TRACKING)
             return cmd
         
-        # Slow forward movement + rotation
-        cmd.linear.x = self.SEARCH_SPEED
+        # FAST search with rotation
+        cmd.linear.x = self.SEARCH_SPEED  # 0.6 → 1620 PWM
         
         elapsed = time.time() - self.state_start_time
         sweep_phase = (elapsed % 10.0) / 10.0
@@ -197,16 +174,10 @@ class BallFollower(Node):
         else:
             cmd.angular.z = -self.SEARCH_YAW_RATE
         
-        if int(elapsed) % 3 == 0:
-            self.get_logger().info(
-                f'🔍 Searching for ball... ({elapsed:.0f}s)',
-                throttle_duration_sec=2.9
-            )
-        
         return cmd
     
     def tracking(self, cmd: Twist) -> Twist:
-        """Track ball from distance - aggressive turning"""
+        """Track ball from distance - AGGRESSIVE SPEEDS"""
         
         # Check if ball lost
         if not self.ball_detected or (time.time() - self.last_detection_time) > self.detection_timeout:
@@ -220,20 +191,14 @@ class BallFollower(Node):
             self.transition_to(self.APPROACHING)
             return cmd
         
-        # Track with aggressive turning
-        cmd.linear.x = self.TRACKING_SPEED
+        # AGGRESSIVE tracking
+        cmd.linear.x = self.TRACKING_SPEED  # 0.8 → 1660 PWM
         cmd.angular.z = -self.alignment_error * self.TRACKING_YAW_GAIN
-        
-        if int((time.time() - self.state_start_time) * 2) % 3 == 0:
-            self.get_logger().info(
-                f'🎯 Tracking: {self.estimated_distance:.2f}m | Align: {self.alignment_error:+.3f}',
-                throttle_duration_sec=1.4
-            )
         
         return cmd
     
     def approaching(self, cmd: Twist) -> Twist:
-        """Approach ball with precise alignment"""
+        """Approach ball with DISTANCE-BASED SPEED RAMPING"""
         
         if not self.ball_detected or (time.time() - self.last_detection_time) > self.detection_timeout:
             self.get_logger().warn('⚠️ Ball lost during approach')
@@ -246,20 +211,21 @@ class BallFollower(Node):
             self.transition_to(self.CLOSE_FOLLOW)
             return cmd
         
-        # Approach with moderate turning
-        cmd.linear.x = self.APPROACH_SPEED
-        cmd.angular.z = -self.alignment_error * self.APPROACH_YAW_GAIN
+        # DISTANCE-BASED SPEED RAMPING
+        # Far (1.5m): 0.7 speed → 1640 PWM
+        # Close (0.5m): 0.3 speed → 1560 PWM
+        distance_ratio = (self.estimated_distance - self.CLOSE_DISTANCE) / (self.APPROACH_DISTANCE - self.CLOSE_DISTANCE)
+        distance_ratio = max(0.0, min(1.0, distance_ratio))
         
-        if int((time.time() - self.state_start_time) * 2) % 3 == 0:
-            self.get_logger().info(
-                f'➡️ Approaching: {self.estimated_distance:.2f}m | Align: {self.alignment_error:+.3f}',
-                throttle_duration_sec=1.4
-            )
+        speed = self.APPROACH_SPEED_MIN + distance_ratio * (self.APPROACH_SPEED_MAX - self.APPROACH_SPEED_MIN)
+        
+        cmd.linear.x = speed
+        cmd.angular.z = -self.alignment_error * self.APPROACH_YAW_GAIN
         
         return cmd
     
     def close_follow(self, cmd: Twist) -> Twist:
-        """Close range following"""
+        """Close range following with PRECISE CONTROL"""
         
         if not self.ball_detected or (time.time() - self.last_detection_time) > self.detection_timeout:
             self.get_logger().warn('⚠️ Ball lost at close range')
@@ -272,15 +238,16 @@ class BallFollower(Node):
             self.transition_to(self.REACHED)
             return cmd
         
-        # Slow precise following
-        cmd.linear.x = self.CLOSE_SPEED
-        cmd.angular.z = -self.alignment_error * self.CLOSE_YAW_GAIN
+        # DISTANCE-BASED SPEED for close range
+        # Far edge (0.5m): 0.3 speed → 1560 PWM
+        # Very close (0.1m): 0.1 speed → 1520 PWM
+        distance_ratio = (self.estimated_distance - self.REACHED_DISTANCE) / (self.CLOSE_DISTANCE - self.REACHED_DISTANCE)
+        distance_ratio = max(0.0, min(1.0, distance_ratio))
         
-        if int((time.time() - self.state_start_time) * 3) % 4 == 0:
-            self.get_logger().info(
-                f'🔥 Close follow: {self.estimated_distance:.2f}m | Align: {self.alignment_error:+.3f}',
-                throttle_duration_sec=1.2
-            )
+        speed = self.CLOSE_SPEED_MIN + distance_ratio * (self.CLOSE_SPEED_MAX - self.CLOSE_SPEED_MIN)
+        
+        cmd.linear.x = speed
+        cmd.angular.z = -self.alignment_error * self.CLOSE_YAW_GAIN
         
         return cmd
     
@@ -303,19 +270,9 @@ class BallFollower(Node):
             cmd.angular.z = -self.alignment_error * 1.0
         
         if abs(self.estimated_distance - self.REACHED_DISTANCE) > 0.1:
-            cmd.linear.x = (self.estimated_distance - self.REACHED_DISTANCE) * 0.3
-        
-        if int((time.time() - self.state_start_time) * 2) % 5 == 0:
-            self.get_logger().info(
-                f'🎯 Holding position: {self.estimated_distance:.2f}m',
-                throttle_duration_sec=2.4
-            )
+            cmd.linear.x = (self.estimated_distance - self.REACHED_DISTANCE) * 0.5
         
         return cmd
-    
-    # ========================================
-    # UTILITIES
-    # ========================================
     
     def transition_to(self, new_state: int):
         state_names = {
