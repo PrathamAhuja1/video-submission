@@ -130,7 +130,7 @@ def generate_launch_description():
         # GScam2 node
         Node(
             package='gscam2',
-            executable='gscam_node',
+            executable='gscam_main',
             name='gscam_publisher',
             output='screen',
             parameters=[{
@@ -140,8 +140,8 @@ def generate_launch_description():
                 'use_gst_timestamps': False,
             }],
             remappings=[
-                ('image_raw', '/camera/image_raw'),
-                ('camera_info', '/camera/camera_info'),
+                ('image_raw', '/image_raw'),
+                ('camera_info', '/camera_info'),
             ],
         ),
     ])
