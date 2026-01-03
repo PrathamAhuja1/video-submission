@@ -115,16 +115,34 @@ def generate_launch_description():
         # 1. USB CAMERA NODE - Launch immediately
         # ====================================================================
         Node(
-            package='usb_cam',
-            executable='usb_cam_node_exe',
-            name='usb_cam',
+            package='gscam2',
+            executable='gscam_main',
+            name='gscam2',
             output='screen',
-            parameters=[camera_params_file],
+            parameters=[
+                '/home/radxa-x4/Documents/gscam_ws/config/gscam_params.yaml',
+                {
+                    'camera_info_url': '/home/radxa-x4/Documents/gscam_ws/config/camera_info.yaml'
+                }
+            ],
             remappings=[
-                ('/image_raw', '/image_raw'),
-                ('/camera_info', '/camera_info'),
+                ('/image_raw', '/image_raw')
             ]
         ),
+
+        TimerAction(
+            period=1.0,
+            actions=[
+                ExecuteProcess(
+                    cmd=[
+                        '/bin/bash',
+                        '/home/radxa-x4/Documents/gscam_ws/config/init_ros_gst_bridge.sh'
+                    ],
+                    output='screen'
+                )
+            ]
+        ),
+
         
         # ====================================================================
         # 2. SERIAL BRIDGE - Launch after 1 second

@@ -103,6 +103,7 @@ class CombinedDetector(Node):
         
         # Publishers - Common
         self.debug_pub = self.create_publisher(Image, '/gate/debug_image', 10)
+        self.debug_pub2 = self.create_publisher(Image, '/flare/debug_image', 10)
         self.status_pub = self.create_publisher(String, '/gate/status', 10)
         
         self.get_logger().info('='*70)
@@ -220,6 +221,13 @@ class CombinedDetector(Node):
             cv2.rectangle(debug_img, (int(x1), int(y1)), (int(x2), int(y2)), color, 3)
             cv2.putText(debug_img, f"FLARE {flare_distance:.2f}m", 
                        (int(x1), int(y2)+25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            
+            try:
+                debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
+                debug_msg.header = msg.header
+                self.debug_pub2.publish(debug_msg)
+            except CvBridgeError as e:
+                self.get_logger().error(f'Debug image error: {e}')
         
         # ========================================
         # COMMON VISUALIZATION

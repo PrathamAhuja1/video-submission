@@ -91,10 +91,10 @@ def main():
                 heave_3 = clamp(
                     1500 - delta, HEAVE_MIN, HEAVE_MAX
                 )
-                heave_1 = heave_2 =  clamp(
+                heave_1 = heave_4 =  clamp(
                     1500 + delta, HEAVE_MIN, HEAVE_MAX
                 )
-                heave_4 = clamp(
+                heave_2 = clamp(
                     1500 - delta, HEAVE_MIN, HEAVE_MAX
                 )
                 active = True
