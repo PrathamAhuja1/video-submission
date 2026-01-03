@@ -39,6 +39,7 @@ install(PROGRAMS
   scripts/cmd_mixer.py
   scripts/test.py
   scripts/ros_gst_udp.py
+  scripts/test2.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
