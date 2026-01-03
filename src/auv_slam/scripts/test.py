@@ -25,7 +25,7 @@ class TestSequenceNode(Node):
         self.declare_parameter('heave_speed', 0.9)   # 1680 PWM
         self.declare_parameter('surge_speed', 0.95)  # 1690 PWM
         self.declare_parameter('yaw_speed', 0.8)     # ~1620 PWM
-        self.declare_parameter('heave_down_duration', 10.0)  # seconds for heave down
+        self.declare_parameter('heave_down_duration', 5.0)  # seconds for heave down
         self.declare_parameter('heave_up_duration', 3.0)    # seconds for heave up
         self.declare_parameter('test_duration', 1.0)  # seconds per other tests
         self.declare_parameter('pause_duration', 1.0)  # seconds between tests

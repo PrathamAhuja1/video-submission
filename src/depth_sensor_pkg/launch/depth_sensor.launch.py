@@ -8,7 +8,7 @@ def generate_launch_description():
     # Declare launch arguments
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyS4',
+        default_value='/dev/ttyUSB0',
         description='Serial port for MS5837 sensor'
     )
     
