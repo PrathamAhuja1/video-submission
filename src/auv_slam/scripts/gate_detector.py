@@ -2,7 +2,7 @@
 """
 Combined Gate and Flare Detector - OPTIMIZED FOR ORANGE FLUORESCENT GATES
 Detects orange/fluorescent gates AND red flares simultaneously
-UPDATED: Single HSV range for both gate and flare detection
+Publishes both horizontal and vertical alignment errors for precise alignment
 """
 
 import rclpy
@@ -45,26 +45,21 @@ class CombinedDetector(Node):
         # ====================================================================
         # DETECTION PARAMETERS - TUNED FOR PVC PIPE GATES UNDERWATER
         # ====================================================================
-        self.min_gate_area = 400           # Minimum contour area (lowered for distance)
-        self.max_gate_area = 150000        # Maximum contour area (larger for close range)
-        self.min_gate_circularity = 0.3    # PVC frames are rectangular, not circular
-        self.min_gate_aspect_ratio = 0.5   # Wider range for rectangular frames
-        self.max_gate_aspect_ratio = 2.0   # Can be vertical or horizontal
+        self.min_gate_area = 400
+        self.max_gate_area = 150000
+        self.min_gate_circularity = 0.3
+        self.min_gate_aspect_ratio = 0.5
+        self.max_gate_aspect_ratio = 2.0
         self.min_flare_area = 500
         
-        # Additional pipe-specific parameters
-        self.min_gate_solidity = 0.4       # Frame structure, not solid
-        self.max_gate_solidity = 0.95      # But not too hollow
+        self.min_gate_solidity = 0.4
+        self.max_gate_solidity = 0.95
         
         # Detection history for temporal filtering
-        self.gate_history = deque(maxlen=5)      # Increased from 3 for more stability
+        self.gate_history = deque(maxlen=5)
         self.flare_history = deque(maxlen=3)
-        self.min_confirmations = 3               # Need 3/5 frames to confirm
+        self.min_confirmations = 3
         self.frame_count = 0
-        
-        # Adaptive thresholding
-        self.use_adaptive = True
-        self.brightness_threshold = 180
         
         # QoS profiles
         qos_sensor = QoSProfile(
@@ -99,6 +94,7 @@ class CombinedDetector(Node):
         # Publishers - Gate
         self.gate_detected_pub = self.create_publisher(Bool, '/gate/detected', 10)
         self.gate_alignment_pub = self.create_publisher(Float32, '/gate/alignment_error', 10)
+        self.gate_vertical_pub = self.create_publisher(Float32, '/gate/vertical_error', 10)
         self.gate_distance_pub = self.create_publisher(Float32, '/gate/estimated_distance', 10)
         self.gate_center_pub = self.create_publisher(Point, '/gate/center_point', 10)
         
@@ -115,12 +111,13 @@ class CombinedDetector(Node):
         self.status_pub = self.create_publisher(String, '/gate/status', 10)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🎯 UNDERWATER Gate & Flare Detector - UPDATED HSV')
+        self.get_logger().info('🎯 Gate & Flare Detector with Vertical Alignment')
         self.get_logger().info('='*70)
         self.get_logger().info('GATE Detection:')
-        self.get_logger().info(f'  HSV Range: Lower={self.gate_lower.tolist()}, Upper={self.gate_upper.tolist()}')
+        self.get_logger().info(f'  HSV: Lower={self.gate_lower.tolist()}, Upper={self.gate_upper.tolist()}')
+        self.get_logger().info('  Publishes: /gate/alignment_error (horizontal) + /gate/vertical_error')
         self.get_logger().info('FLARE Detection:')
-        self.get_logger().info(f'  HSV Range: Lower={self.flare_lower.tolist()}, Upper={self.flare_upper.tolist()}')
+        self.get_logger().info(f'  HSV: Lower={self.flare_lower.tolist()}, Upper={self.flare_upper.tolist()}')
         self.get_logger().info('='*70)
     
     def cam_info_callback(self, msg: CameraInfo):
@@ -135,27 +132,20 @@ class CombinedDetector(Node):
             self.get_logger().info(f'📷 Camera: {self.image_width}x{self.image_height}, fx={self.fx:.1f}')
     
     def analyze_gate_contour(self, contour, image_shape):
-        """
-        Advanced contour analysis for PVC pipe gate detection
-        Returns: (is_valid, score, properties)
-        """
+        """Advanced contour analysis for PVC pipe gate detection"""
         area = cv2.contourArea(contour)
         
-        # Area check
         if area < self.min_gate_area or area > self.max_gate_area:
             return False, 0.0, None
         
-        # Bounding rectangle
         x, y, w, h = cv2.boundingRect(contour)
         if w == 0 or h == 0:
             return False, 0.0, None
         
-        # Aspect ratio check (gates can be square or rectangular)
         aspect_ratio = float(h) / w
         if aspect_ratio < self.min_gate_aspect_ratio or aspect_ratio > self.max_gate_aspect_ratio:
             return False, 0.0, None
         
-        # Circularity/compactness check (relaxed for pipe frames)
         perimeter = cv2.arcLength(contour, True)
         if perimeter == 0:
             return False, 0.0, None
@@ -164,7 +154,6 @@ class CombinedDetector(Node):
         if circularity < self.min_gate_circularity:
             return False, 0.0, None
         
-        # Solidity check (pipe frames have moderate solidity)
         hull = cv2.convexHull(contour)
         hull_area = cv2.contourArea(hull)
         if hull_area > 0:
@@ -172,19 +161,15 @@ class CombinedDetector(Node):
         else:
             solidity = 0
         
-        # PVC pipe frames should have moderate solidity (not too hollow, not too solid)
         if solidity < self.min_gate_solidity or solidity > self.max_gate_solidity:
             return False, 0.0, None
         
-        # Rectangularity check (how well does it fit a rectangle?)
         rect_area = w * h
         extent = float(area) / rect_area if rect_area > 0 else 0
         
-        # Pipe frames should fill most of their bounding box
-        if extent < 0.4:  # Too sparse
+        if extent < 0.4:
             return False, 0.0, None
         
-        # Moments for centroid
         M = cv2.moments(contour)
         if M["m00"] == 0:
             return False, 0.0, None
@@ -192,30 +177,25 @@ class CombinedDetector(Node):
         cx = int(M["m10"] / M["m00"])
         cy = int(M["m01"] / M["m00"])
         
-        # Position check (gates usually not at extreme edges)
         h_img, w_img = image_shape[:2]
-        edge_margin = 0.03  # 3% margin (reduced from 5% for underwater)
+        edge_margin = 0.03
         if (cx < w_img * edge_margin or cx > w_img * (1 - edge_margin) or
             cy < h_img * edge_margin or cy > h_img * (1 - edge_margin)):
-            edge_penalty = 0.7  # Stronger penalty for edge positions
+            edge_penalty = 0.7
         else:
             edge_penalty = 1.0
         
-        # Calculate composite score optimized for PVC pipe gates
-        # Prefer: large area, moderate aspect ratio, good rectangularity, moderate solidity
-        aspect_score = 1.0 - abs(1.0 - aspect_ratio)  # Best at 1.0 (square)
-        aspect_score = max(0.0, min(1.0, aspect_score)) * 0.7 + 0.3  # Don't penalize too much
+        aspect_score = 1.0 - abs(1.0 - aspect_ratio)
+        aspect_score = max(0.0, min(1.0, aspect_score)) * 0.7 + 0.3
         
-        size_score = min(area / 8000.0, 1.0)  # Normalize to 0-1
-        
-        # Rectangularity is important for pipe frames
+        size_score = min(area / 8000.0, 1.0)
         rect_score = extent
         
-        score = (area * 0.35 +                 # Area weight (increased)
-                 circularity * 4000 * 0.20 +   # Circularity weight
-                 solidity * 4000 * 0.15 +      # Solidity weight
-                 aspect_score * 4000 * 0.15 +  # Aspect ratio weight
-                 size_score * 4000 * 0.10 +    # Size score
+        score = (area * 0.35 +
+                 circularity * 4000 * 0.20 +
+                 solidity * 4000 * 0.15 +
+                 aspect_score * 4000 * 0.15 +
+                 size_score * 4000 * 0.10 +
                  rect_score * 4000 * 0.05) * edge_penalty
         
         properties = {
@@ -247,20 +227,10 @@ class CombinedDetector(Node):
         h, w = cv_image.shape[:2]
         
         # ========================================
-        # GATE DETECTION - SIMPLIFIED SINGLE RANGE
+        # GATE DETECTION
         # ========================================
         hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
-        
-        # Apply single gate HSV range
         gate_mask = cv2.inRange(hsv_image, self.gate_lower, self.gate_upper)
-        
-        # Publish combined mask for debugging
-        try:
-            mask_msg = self.bridge.cv2_to_imgmsg(gate_mask, "mono8")
-            mask_msg.header = msg.header
-            self.mask_pub.publish(mask_msg)
-        except CvBridgeError as e:
-            self.get_logger().error(f'Mask publish error: {e}')
         
         # Morphological operations
         kernel_close = np.ones((9, 9), np.uint8)
@@ -280,25 +250,21 @@ class CombinedDetector(Node):
         
         gate_detected = False
         gate_alignment_error = 0.0
+        gate_vertical_error = 0.0
         gate_distance = 999.0
         gate_center_x = w // 2
         gate_center_y = h // 2
         
         best_gate = None
         best_gate_score = 0
-        
-        # Analyze all contours
         valid_gates = []
+        
         for cnt in gate_contours:
             is_valid, score, properties = self.analyze_gate_contour(cnt, cv_image.shape)
-            
             if is_valid:
                 valid_gates.append((score, properties))
-                
-                # Draw all valid candidates in yellow
                 cv2.drawContours(debug_img, [properties['contour']], -1, (0, 255, 255), 2)
         
-        # Select best gate
         if valid_gates:
             valid_gates.sort(key=lambda x: x[0], reverse=True)
             best_gate_score, best_gate = valid_gates[0]
@@ -307,9 +273,15 @@ class CombinedDetector(Node):
             gate_center_x, gate_center_y = best_gate['center']
             x, y, w_box, h_box = best_gate['bbox']
             
-            # Calculate alignment error
+            # HORIZONTAL alignment error (left-right)
             pixel_error = gate_center_x - (w / 2)
             gate_alignment_error = pixel_error / (w / 2)
+            
+            # VERTICAL alignment error (up-down) - CRITICAL FOR DEPTH ALIGNMENT
+            # Negative error = gate above center = need to go DOWN
+            # Positive error = gate below center = need to go UP
+            pixel_vert_error = gate_center_y - (h / 2)
+            gate_vertical_error = pixel_vert_error / (h / 2)
             
             # Estimate distance
             if w_box > 20 and h_box > 20:
@@ -318,25 +290,24 @@ class CombinedDetector(Node):
                 gate_distance = (distance_from_width + distance_from_height) / 2
                 gate_distance = max(0.3, min(gate_distance, 20.0))
             
-            # Draw best gate in GREEN with details
+            # Draw best gate in GREEN
             cv2.rectangle(debug_img, (x, y), (x+w_box, y+h_box), (0, 255, 0), 4)
             cv2.circle(debug_img, (gate_center_x, gate_center_y), 15, (0, 255, 0), -1)
             cv2.circle(debug_img, (gate_center_x, gate_center_y), 17, (255, 255, 255), 3)
             cv2.line(debug_img, (gate_center_x, 0), (gate_center_x, h), (0, 255, 0), 2)
+            cv2.line(debug_img, (0, gate_center_y), (w, gate_center_y), (0, 255, 0), 2)
             
-            # Detailed text info
+            # Text info
             info_y = y - 60 if y > 120 else y + h_box + 30
             cv2.putText(debug_img, f"GATE {gate_distance:.2f}m", 
                        (x, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 3)
-            cv2.putText(debug_img, f"Score: {best_gate_score:.0f}", 
+            cv2.putText(debug_img, f"H:{gate_alignment_error:+.3f} V:{gate_vertical_error:+.3f}", 
                        (x, info_y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-            cv2.putText(debug_img, f"AR:{best_gate['aspect_ratio']:.2f} Ext:{best_gate['extent']:.2f}", 
+            cv2.putText(debug_img, f"Score: {best_gate_score:.0f}", 
                        (x, info_y + 52), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.putText(debug_img, f"Sol:{best_gate['solidity']:.2f} Circ:{best_gate['circularity']:.2f}", 
-                       (x, info_y + 72), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
         # ========================================
-        # FLARE DETECTION - SIMPLIFIED SINGLE RANGE
+        # FLARE DETECTION
         # ========================================
         flare_mask = cv2.inRange(hsv_image, self.flare_lower, self.flare_upper)
         
@@ -411,18 +382,17 @@ class CombinedDetector(Node):
         # VISUALIZATION
         # ========================================
         cv2.line(debug_img, (w//2, 0), (w//2, h), (255, 255, 0), 2)
+        cv2.line(debug_img, (0, h//2), (w, h//2), (255, 255, 0), 2)
         
         status_line = f"Frame {self.frame_count} | Gate: {'YES' if gate_detected else 'NO'} {gate_distance:.1f}m"
         if gate_detected:
-            status_line += f" (Score:{best_gate_score:.0f})"
-        status_line += f" | Flare: {'YES' if flare_detected else 'NO'} {flare_distance:.1f}m"
+            status_line += f" (H:{gate_alignment_error:+.3f} V:{gate_vertical_error:+.3f})"
+        status_line += f" | Flare: {'YES' if flare_detected else 'NO'}"
         
         status_color = (0, 0, 255) if flare_in_danger else ((0, 255, 0) if gate_detected else (100, 100, 100))
         
         cv2.putText(debug_img, status_line, (10, 30), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, status_color, 2)
-        cv2.putText(debug_img, f"Valid gates found: {len(valid_gates)}", (10, 60),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
         # ========================================
         # TEMPORAL FILTERING & PUBLISHING
@@ -437,6 +407,7 @@ class CombinedDetector(Node):
         self.gate_detected_pub.publish(Bool(data=gate_confirmed))
         if gate_confirmed:
             self.gate_alignment_pub.publish(Float32(data=float(gate_alignment_error)))
+            self.gate_vertical_pub.publish(Float32(data=float(gate_vertical_error)))
             self.gate_distance_pub.publish(Float32(data=float(gate_distance)))
             
             center_msg = Point()
@@ -467,15 +438,7 @@ class CombinedDetector(Node):
         if self.frame_count % 30 == 0:
             if gate_detected:
                 self.get_logger().info(
-                    f'🎯 GATE: {gate_distance:.1f}m | Score:{best_gate_score:.0f} | '
-                    f'AR:{best_gate["aspect_ratio"]:.2f} Sol:{best_gate["solidity"]:.2f} '
-                    f'Ext:{best_gate["extent"]:.2f} | Flare:{flare_distance:.1f}m',
-                    throttle_duration_sec=0.9
-                )
-            else:
-                self.get_logger().info(
-                    f'❌ No gate detected | Valid candidates: {len(valid_gates)} | '
-                    f'Flare:{flare_distance:.1f}m',
+                    f'🎯 GATE: {gate_distance:.1f}m | H:{gate_alignment_error:+.3f} V:{gate_vertical_error:+.3f}',
                     throttle_duration_sec=0.9
                 )
         

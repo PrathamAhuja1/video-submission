@@ -20,17 +20,17 @@ def generate_launch_description():
         # ============================================================
         # 1. USB CAMERA NODE - Launch immediately
         # ============================================================
-        Node(
-            package='usb_cam',
-            executable='usb_cam_node_exe',
-            name='usb_cam',
-            output='screen',
-            parameters=[camera_params_file],
-            remappings=[
-                ('/image_raw', '/image_raw'),
-                ('/camera_info', '/camera_info'),
-            ]
-        ),
+        #Node(
+        #    package='usb_cam',
+        #    executable='usb_cam_node_exe',
+        #    name='usb_cam',
+        #    output='screen',
+        #    parameters=[camera_params_file],
+        #    remappings=[
+        #        ('/image_raw', '/image_raw'),
+        #        ('/camera_info', '/camera_info'),
+        #    ]
+        #),
         
         # ============================================================
         # 2. DEPTH SENSOR NODE - DISABLED (Conflict with Serial Bridge)

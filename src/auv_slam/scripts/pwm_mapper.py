@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-PWM Mapper - Maps Twist to 6 ESC channels
-6-Thruster Configuration (NO SWAY):
-  [0] Back-Left (vertical)     - Heave/Pitch/Roll
-  [1] Front-Right (vertical)   - Heave/Pitch/Roll
-  [2] Surge-Left              - Surge/Yaw (neutral: 1500)
-  [3] Surge-Right             - Surge/Yaw
-  [4] Back-Right (vertical)    - Heave/Pitch/Roll
-  [5] Front-Left (vertical)    - Heave/Pitch/Roll (neutral: 1500)
+PWM Mapper - Maps Twist to 8 ESC channels
+8-Thruster Configuration (WITH SWAY):
+  [0] Back-Left (vertical)        - Heave/Pitch/Roll
+  [1] Front-Right (vertical)      - Heave/Pitch/Roll
+  [2] Surge-Left                  - Surge/Yaw
+  [3] Surge-Right                 - Surge/Yaw
+  [4] Back-Right (vertical)       - Heave/Pitch/Roll
+  [5] Front-Left (vertical)       - Heave/Pitch/Roll
+  [6] Sway-Port (left)            - Sway/Yaw
+  [7] Sway-Starboard (right)      - Sway/Yaw
 """
 
 import rclpy
@@ -21,11 +23,12 @@ class PWMMapper(Node):
     def __init__(self):
         super().__init__('pwm_mapper')
         
-        # PWM Configuration - Updated to 1300-1700 range
+        # PWM Configuration - 1300-1700 range
         self.PWM_MIN = 1300
         self.PWM_MAX = 1700
+        self.PWM_RANGE = self.PWM_MAX - self.PWM_MIN  # 400
         
-        # Neutral values for each thruster (6 thrusters only)
+        # Neutral values for 8 thrusters
         self.PWM_NEUTRAL = np.array([
             1500,  # [0] Back-Left (vertical)
             1500,  # [1] Front-Right (vertical)
@@ -33,35 +36,40 @@ class PWMMapper(Node):
             1500,  # [3] Surge-Right
             1500,  # [4] Back-Right (vertical)
             1480,  # [5] Front-Left (vertical, has -20 offset)
-            1500,
-            1500
+            1500,  # [6] Sway-Port (left)
+            1500,  # [7] Sway-Starboard (right)
         ], dtype=np.float32)
         
         # Thruster indices for clarity
         self.BACK_LEFT = 0      # Vertical
         self.FRONT_RIGHT = 1    # Vertical
-        self.SURGE_LEFT = 2     # Horizontal forward
-        self.SURGE_RIGHT = 3    # Horizontal forward
+        self.SURGE_LEFT = 2     # Horizontal forward (left)
+        self.SURGE_RIGHT = 3    # Horizontal forward (right)
         self.BACK_RIGHT = 4     # Vertical
         self.FRONT_LEFT = 5     # Vertical
+        self.SWAY_PORT = 6      # Sway (left)
+        self.SWAY_STARBOARD = 7 # Sway (right)
         
-        # Control gains - adjusted for 1300-1700 range (400 range instead of 400)
-        # These gains map normalized velocity (-1 to +1) to PWM offset
-        self.HEAVE_GAIN = 200.0    # Vertical movement
-        self.SURGE_GAIN = 200.0    # Forward/backward
-        self.YAW_GAIN = 150.0      # Rotation
+        # Control gains - adjusted for 1300-1700 range
+        self.HEAVE_GAIN = 200.0    # Vertical movement (up/down)
+        self.SURGE_GAIN = 200.0    # Forward/backward movement
+        self.SWAY_GAIN = 200.0     # Left/right movement (NEW)
+        self.YAW_GAIN = 150.0      # Rotation (left/right turn)
         self.PITCH_GAIN = 100.0    # Nose up/down
-        self.ROLL_GAIN = 100.0     # Side tilt
+        self.ROLL_GAIN = 100.0     # Side tilt (left/right lean)
         
         # Thruster geometry (for proper mixing)
-        # Vertical thrusters positions (for pitch/roll moments)
-        self.VERT_FRONT_X = 0.23   # Front thrusters X position
-        self.VERT_BACK_X = -0.23   # Back thrusters X position
-        self.VERT_LEFT_Y = 0.16    # Left thrusters Y position
-        self.VERT_RIGHT_Y = -0.16  # Right thrusters Y position
+        # Vertical thrusters positions
+        self.VERT_FRONT_X = 0.23
+        self.VERT_BACK_X = -0.23
+        self.VERT_LEFT_Y = 0.16
+        self.VERT_RIGHT_Y = -0.16
         
-        # Surge thrusters lateral spacing (for yaw)
-        self.SURGE_LATERAL = 0.15  # Distance from centerline
+        # Surge thrusters lateral spacing
+        self.SURGE_LATERAL = 0.15
+        
+        # Sway thrusters longitudinal spacing
+        self.SWAY_LONGITUDINAL = 0.20
         
         # Subscribers & Publishers
         self.twist_sub = self.create_subscription(
@@ -72,41 +80,43 @@ class PWMMapper(Node):
         self.cmd_count = 0
         
         self.get_logger().info('='*70)
-        self.get_logger().info('✅ PWM Mapper: 6-Thruster Configuration (NO SWAY)')
+        self.get_logger().info('✅ PWM Mapper: 8-Thruster Configuration (WITH SWAY)')
         self.get_logger().info('='*70)
         self.get_logger().info(f'  PWM Range: {self.PWM_MIN}-{self.PWM_MAX} µs')
         self.get_logger().info(f'  Neutral: {self.PWM_NEUTRAL.tolist()}')
-        self.get_logger().info('  Thruster Layout:')
-        self.get_logger().info('    [0-1,4-5] = Vertical (Heave/Pitch/Roll)')
-        self.get_logger().info('    [2-3] = Surge (Forward/Yaw)')
-        self.get_logger().info('  ⚠️  NO SWAY capability in this configuration')
+        self.get_logger().info('')
+        self.get_logger().info('  Thruster Layout (8):')
+        self.get_logger().info('    [0-1,4-5] = Vertical Thrusters (Heave/Pitch/Roll)')
+        self.get_logger().info('    [2-3] = Surge Thrusters (Forward)')
+        self.get_logger().info('    [6-7] = Sway Thrusters (Lateral) - NEW!')
+        self.get_logger().info('')
+        self.get_logger().info('  Twist Command Components:')
+        self.get_logger().info('    linear.x  = Surge (forward/backward)')
+        self.get_logger().info('    linear.y  = Sway (left/right) - NOW SUPPORTED!')
+        self.get_logger().info('    linear.z  = Heave (up/down)')
+        self.get_logger().info('    angular.x = Roll (tilt left/right)')
+        self.get_logger().info('    angular.y = Pitch (tilt forward/back)')
+        self.get_logger().info('    angular.z = Yaw (rotate left/right)')
         self.get_logger().info('='*70)
     
     def twist_callback(self, msg: Twist):
         """
-        Convert Twist command to 6-channel PWM values
+        Convert Twist command to 8-channel PWM values
         
         Twist components:
           linear.x  = Surge (forward/backward)
-          linear.y  = Sway (NOT SUPPORTED - will be ignored)
+          linear.y  = Sway (left/right) - NOW SUPPORTED!
           linear.z  = Heave (up/down)
           angular.x = Roll (tilt left/right)
           angular.y = Pitch (tilt forward/back)
           angular.z = Yaw (rotate left/right)
         """
-        surge = msg.linear.x
-        sway = msg.linear.y  # Will be ignored
-        heave = msg.linear.z
-        roll = msg.angular.x
-        pitch = msg.angular.y
-        yaw = msg.angular.z
-        
-        # Warn if sway is commanded
-        if abs(sway) > 0.01 and self.cmd_count % 50 == 0:
-            self.get_logger().warn(
-                f'⚠️ Sway command ({sway:.2f}) ignored - no sway thrusters!',
-                throttle_duration_sec=5.0
-            )
+        surge = msg.linear.x    # Forward/backward
+        sway = msg.linear.y     # Left/right (NEW - NOW SUPPORTED)
+        heave = msg.linear.z    # Up/down
+        roll = msg.angular.x    # Tilt left/right
+        pitch = msg.angular.y   # Tilt forward/back
+        yaw = msg.angular.z     # Rotate left/right
         
         # Start with neutral PWM values
         pwm = self.PWM_NEUTRAL.copy()
@@ -138,12 +148,26 @@ class PWMMapper(Node):
         # ============================================================
         surge_pwm = surge * self.SURGE_GAIN
         
-        # Yaw contribution (differential thrust)
+        # Yaw contribution from surge (differential thrust)
         # Positive yaw = turn right -> left forward, right backward
         yaw_surge_pwm = yaw * self.YAW_GAIN
         
         pwm[self.SURGE_LEFT] += surge_pwm + yaw_surge_pwm
         pwm[self.SURGE_RIGHT] += surge_pwm - yaw_surge_pwm
+        
+        # ============================================================
+        # SWAY THRUSTERS (2x): Lateral + Yaw (NEW!)
+        # ============================================================
+        # Sway contribution (left/right movement)
+        # Positive sway = move right -> port back, starboard forward
+        sway_pwm = sway * self.SWAY_GAIN
+        
+        # Yaw contribution from sway (differential thrust)
+        # Positive yaw = turn right -> port forward, starboard back
+        yaw_sway_pwm = yaw * self.YAW_GAIN * 0.5  # Reduced for sway thrusters
+        
+        pwm[self.SWAY_PORT] += -sway_pwm + yaw_sway_pwm      # Port (left)
+        pwm[self.SWAY_STARBOARD] += sway_pwm - yaw_sway_pwm  # Starboard (right)
         
         # ============================================================
         # CLAMP AND PUBLISH
@@ -158,8 +182,8 @@ class PWMMapper(Node):
         self.cmd_count += 1
         if self.cmd_count % 50 == 0:
             self.get_logger().info(
-                f'CMD: Surge={surge:+.2f} Heave={heave:+.2f} Yaw={yaw:+.2f} '
-                f'| PWM: {pwm.tolist()}',
+                f'CMD: Surge={surge:+.2f} Sway={sway:+.2f} Heave={heave:+.2f} '
+                f'Yaw={yaw:+.2f} | PWM[0-7]: {pwm.tolist()}',
                 throttle_duration_sec=2.0
             )
 
