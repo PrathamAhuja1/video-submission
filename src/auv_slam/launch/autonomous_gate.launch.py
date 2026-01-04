@@ -32,20 +32,18 @@ def generate_launch_description():
         #    ]
         #),
         
-        # ============================================================
-        # 2. DEPTH SENSOR NODE - DISABLED (Conflict with Serial Bridge)
-        # ============================================================
-        # Node(
-        #     package='depth_sensor_pkg',
-        #     executable='depth_sensor_node',
-        #     name='depth_sensor',
-        #     output='screen',
-        #     parameters=[{
-        #         'serial_port': '/dev/ttyS4',
-        #         'baud_rate': 115200,
-        #         'publish_rate': 20.0
-        #     }]
-        # ),
+
+         Node(
+             package='depth_sensor_pkg',
+             executable='depth_sensor_node',
+             name='depth_sensor',
+             output='screen',
+             parameters=[{
+                 'serial_port': '/dev/ttyUSB0',
+                 'baud_rate': 9600,
+                 'publish_rate': 20.0
+             }]
+         ),
         
         # ============================================================
         # 3. VN100 IMU NODE - Launch immediately

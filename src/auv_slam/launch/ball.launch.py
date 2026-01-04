@@ -39,8 +39,8 @@ def generate_launch_description():
             name='depth_sensor',
             output='screen',
             parameters=[{
-                'serial_port': '/dev/ttyS4',
-                'baud_rate': 115200,
+                'serial_port': '/dev/ttyUSB0',
+                'baud_rate': 9600,
                 'publish_rate': 20.0
             }]
         ),
