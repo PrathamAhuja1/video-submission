@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Simple Flare Detector - HSV-based detection
+Detects flares in underwater environment
+UPDATED: New single HSV range for flare detection
+"""
 
 import rclpy
 from rclpy.node import Node
@@ -17,18 +22,11 @@ class SimpleFlareDetector(Node):
         self.bridge = CvBridge()
 
         # ===============================
-        # HSV RANGE FOR RED FLARE
+        # HSV RANGE FOR FLARE
         # ===============================
-
-        # Lower=[0,39,200], Upper=[80,170,255]
-        # Lower=[0,17,109], Upper=[43,114,172]
-
-
-        self.red_lower1 = np.array([0,17,109])
-        self.red_upper1 = np.array([43,114,172])
-
-        self.red_lower2 = np.array([0,39,200])
-        self.red_upper2 = np.array([80,170,255])
+        # UPDATED: Single optimized HSV range
+        self.flare_lower = np.array([20, 55, 53])
+        self.flare_upper = np.array([138, 255, 200])
 
         # ===============================
         # SHAPE FILTERING
@@ -52,7 +50,14 @@ class SimpleFlareDetector(Node):
         self.flare_direction_pub = self.create_publisher(Float32, '/flare/direction_error', 10)
         self.debug_pub = self.create_publisher(Image, '/flare/debug_image', 10)
 
-        self.get_logger().info('🔥 Simple HSV Flare Detector Started')
+        self.get_logger().info('='*70)
+        self.get_logger().info('🔥 Simple Flare Detector Started')
+        self.get_logger().info('='*70)
+        self.get_logger().info('FLARE Detection:')
+        self.get_logger().info(f'  HSV Range: Lower={self.flare_lower.tolist()}, Upper={self.flare_upper.tolist()}')
+        self.get_logger().info(f'  Min Area: {self.min_area}px')
+        self.get_logger().info(f'  Aspect Ratio: {self.min_aspect_ratio}-{self.max_aspect_ratio}')
+        self.get_logger().info('='*70)
 
     def image_callback(self, msg: Image):
         try:
@@ -64,20 +69,19 @@ class SimpleFlareDetector(Node):
         debug = frame.copy()
 
         # ===============================
-        # HSV MASK
+        # HSV MASK - SINGLE RANGE
         # ===============================
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-        mask1 = cv2.inRange(hsv, self.red_lower1, self.red_upper1)
-        mask2 = cv2.inRange(hsv, self.red_lower2, self.red_upper2)
-        mask = cv2.bitwise_or(mask1, mask2)
+        
+        # Apply single optimized flare HSV range
+        flare_mask = cv2.inRange(hsv, self.flare_lower, self.flare_upper)
 
         # Clean mask
         kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        flare_mask = cv2.morphologyEx(flare_mask, cv2.MORPH_CLOSE, kernel)
+        flare_mask = cv2.morphologyEx(flare_mask, cv2.MORPH_OPEN, kernel)
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(flare_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         flare_detected = False
         best_contour = None
@@ -120,6 +124,12 @@ class SimpleFlareDetector(Node):
             cv2.rectangle(debug, (x, y), (x + bw, y + bh), (0, 0, 255), 3)
             cv2.circle(debug, (cx, cy), 8, (0, 0, 255), -1)
             cv2.line(debug, (w // 2, 0), (w // 2, h), (255, 255, 0), 2)
+            
+            # Add text annotations
+            cv2.putText(debug, f'FLARE - Area: {best_area:.0f}', 
+                       (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            cv2.putText(debug, f'Dir: {direction_error:+.3f}', 
+                       (x, y+bh+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
             # Publish data
             self.flare_detected_pub.publish(Bool(data=True))

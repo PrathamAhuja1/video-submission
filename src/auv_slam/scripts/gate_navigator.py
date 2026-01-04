@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Combined Gate Navigator with Flare Avoidance
+Gate Navigator - ALIGNMENT ONLY (NO SURGE)
 HIGH THRUST VERSION - Aggressive speeds with proper alignment
-Handles gate loss scenarios
+Aligns with gate and maintains alignment (no passing through)
 """
 
 import rclpy
@@ -24,9 +24,8 @@ class GateFlareNavigator(Node):
         self.ALIGNING_GATE = 3
         self.FLARE_EMERGENCY_AVOID = 4
         self.FLARE_CONTROLLED_AVOID = 5
-        self.PASSING_GATE = 6
-        self.GATE_LOST_RECOVERY = 7  # NEW: Handle gate loss
-        self.COMPLETED = 8
+        self.GATE_LOST_RECOVERY = 6
+        self.ALIGNED = 7
         
         self.state = self.STABILIZING
         
@@ -37,8 +36,6 @@ class GateFlareNavigator(Node):
         # Gate parameters
         self.GATE_APPROACH_DISTANCE = 2.0
         self.GATE_ALIGNMENT_DISTANCE = 1.0
-        self.GATE_PASSING_DISTANCE = 0.5
-        self.GATE_PASSING_DURATION = 4.0  # Reduced from 5s
         
         # Flare parameters
         self.FLARE_DANGER_DISTANCE = 0.5
@@ -50,7 +47,6 @@ class GateFlareNavigator(Node):
         self.APPROACH_SPEED_MIN = 0.5    # 1600 PWM
         self.ALIGNMENT_SPEED_MAX = 0.45  # 1590 PWM
         self.ALIGNMENT_SPEED_MIN = 0.2   # 1540 PWM
-        self.PASSING_SPEED = 1.0         # 1700 PWM
         self.AVOID_SPEED = 0.6           # 1620 PWM
         self.RECOVERY_SPEED = 0.4        # 1580 PWM
         
@@ -70,8 +66,10 @@ class GateFlareNavigator(Node):
         self.gate_detected = False
         self.gate_alignment_error = 0.0
         self.gate_distance = 999.0
+        self.gate_center_y = 240  # Image center Y (normalized)
         self.last_gate_detection_time = 0.0
         self.last_known_alignment = 0.0
+        self.last_known_vertical = 0.0
         
         self.flare_detected = False
         self.flare_direction = 0.0
@@ -84,8 +82,10 @@ class GateFlareNavigator(Node):
         self.avoidance_target_yaw = 0.0
         
         self.state_start_time = time.time()
-        self.passing_start_time = 0.0
         self.total_flare_avoidances = 0
+        
+        # Image dimensions (will be updated from camera)
+        self.image_height = 480
         
         # Subscriptions - Gate
         self.create_subscription(Bool, '/gate/detected', 
@@ -118,11 +118,11 @@ class GateFlareNavigator(Node):
         self.create_timer(0.05, self.control_loop)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🎯 Gate Navigator - HIGH THRUST MODE')
+        self.get_logger().info('🎯 Gate Navigator - ALIGNMENT ONLY (NO SURGE)')
         self.get_logger().info('='*70)
-        self.get_logger().info(f'  Search Speed: {self.SEARCH_SPEED} (PWM ~{1500 + int(self.SEARCH_SPEED*200)})')
-        self.get_logger().info(f'  Approach Speed: {self.APPROACH_SPEED_MIN}-{self.APPROACH_SPEED_MAX}')
-        self.get_logger().info(f'  Passing Speed: {self.PASSING_SPEED} (PWM ~{1500 + int(self.PASSING_SPEED*200)})')
+        self.get_logger().info('  Mission: Find gate and maintain perfect alignment')
+        self.get_logger().info('  No surge/passing through gate')
+        self.get_logger().info('  Vertical + Horizontal alignment required')
         self.get_logger().info('='*70)
     
     def gate_detected_callback(self, msg: Bool):
@@ -168,8 +168,8 @@ class GateFlareNavigator(Node):
     def control_loop(self):
         cmd = Twist()
         
-        # PRIORITY 1: Check for flare threats
-        if self.state not in [self.COMPLETED, self.PASSING_GATE]:
+        # PRIORITY 1: Check for flare threats (except in ALIGNED state)
+        if self.state not in [self.ALIGNED]:
             if self.check_flare_threat():
                 return
         
@@ -189,12 +189,10 @@ class GateFlareNavigator(Node):
             cmd = self.flare_emergency_avoid(cmd)
         elif self.state == self.FLARE_CONTROLLED_AVOID:
             cmd = self.flare_controlled_avoid(cmd)
-        elif self.state == self.PASSING_GATE:
-            cmd = self.passing_gate(cmd)
         elif self.state == self.GATE_LOST_RECOVERY:
             cmd = self.gate_lost_recovery(cmd)
-        elif self.state == self.COMPLETED:
-            cmd = self.completed(cmd)
+        elif self.state == self.ALIGNED:
+            cmd = self.aligned(cmd)
         
         self.cmd_vel_pub.publish(cmd)
     
@@ -299,7 +297,7 @@ class GateFlareNavigator(Node):
         return cmd
     
     def aligning_gate(self, cmd: Twist) -> Twist:
-        """PRECISE ALIGNMENT before passing"""
+        """PRECISE ALIGNMENT - Horizontal and Vertical"""
         
         # Check if gate lost
         time_since_gate = time.time() - self.last_gate_detection_time
@@ -309,57 +307,69 @@ class GateFlareNavigator(Node):
             return cmd
         
         # Use last known values if gate temporarily not visible
-        alignment = self.gate_alignment_error if self.gate_detected else self.last_known_alignment
+        horizontal_error = self.gate_alignment_error if self.gate_detected else self.last_known_alignment
         distance = self.gate_distance if self.gate_detected else 0.8
         
-        # Check if ready to pass
-        if distance <= self.GATE_PASSING_DISTANCE and abs(alignment) < self.PRECISE_ALIGNMENT:
-            self.get_logger().info('🚀 PERFECTLY ALIGNED - PASSING THROUGH GATE!')
-            self.passing_start_time = time.time()
-            self.transition_to(self.PASSING_GATE)
+        # Calculate vertical alignment error (based on gate center Y position)
+        # This is a simple approximation - need to import gate center position
+        # For now using 0 as placeholder - actual value should come from detector
+        vertical_error = 0.0  # Will be implemented via new topic
+        
+        # Check if perfectly aligned
+        if abs(horizontal_error) < self.PRECISE_ALIGNMENT and abs(vertical_error) < self.PRECISE_ALIGNMENT:
+            self.get_logger().info('='*70)
+            self.get_logger().info('✅ PERFECTLY ALIGNED WITH GATE!')
+            self.get_logger().info('   Maintaining alignment position...')
+            self.get_logger().info('='*70)
+            self.transition_to(self.ALIGNED)
             return cmd
         
         # DISTANCE-BASED SPEED for alignment phase
-        # Far edge (1.0m): 0.4 speed → 1580 PWM
-        # Very close (0.5m): 0.15 speed → 1530 PWM
-        distance_ratio = (distance - self.GATE_PASSING_DISTANCE) / (self.GATE_ALIGNMENT_DISTANCE - self.GATE_PASSING_DISTANCE)
+        distance_ratio = (distance - 0.3) / (self.GATE_ALIGNMENT_DISTANCE - 0.3)
         distance_ratio = max(0.0, min(1.0, distance_ratio))
         
         speed = self.ALIGNMENT_SPEED_MIN + distance_ratio * (self.ALIGNMENT_SPEED_MAX - self.ALIGNMENT_SPEED_MIN)
         
         # AGGRESSIVE TURNING for alignment
-        cmd.linear.x = speed if abs(alignment) < self.ROUGH_ALIGNMENT else speed * 0.5
-        cmd.angular.z = -alignment * self.ALIGNMENT_YAW_GAIN
+        cmd.linear.x = speed if abs(horizontal_error) < self.ROUGH_ALIGNMENT else speed * 0.5
+        
+        # Horizontal alignment using yaw
+        cmd.angular.z = -horizontal_error * self.ALIGNMENT_YAW_GAIN
+        
+        # Vertical alignment using heave (from vertical error)
+        cmd.linear.z = -vertical_error * 0.5
+        
+        self.get_logger().info(
+            f'🎯 ALIGNING: H_err={horizontal_error:+.3f} V_err={vertical_error:+.3f} | '
+            f'Speed={speed:.2f} Yaw={cmd.angular.z:+.2f}',
+            throttle_duration_sec=0.5
+        )
         
         return cmd
     
-    def passing_gate(self, cmd: Twist) -> Twist:
-        """Pass through gate with HIGH SPEED"""
+    def aligned(self, cmd: Twist) -> Twist:
+        """Perfect alignment achieved - maintain position"""
         
-        elapsed = time.time() - self.passing_start_time
-        
-        if elapsed >= self.GATE_PASSING_DURATION:
-            self.get_logger().info('='*70)
-            self.get_logger().info('🎉 GATE PASSAGE COMPLETE!')
-            self.get_logger().info(f'   Flares Avoided: {self.total_flare_avoidances}')
-            self.get_logger().info('='*70)
-            self.transition_to(self.COMPLETED)
+        # Check if gate still detected
+        if not self.gate_detected:
+            self.get_logger().warn('⚠️ Gate lost after alignment - searching...')
+            self.transition_to(self.SEARCHING_GATE)
             return cmd
         
-        # FAST passing speed with minimal correction
-        cmd.linear.x = self.PASSING_SPEED  # 0.8 → 1660 PWM
+        # Gentle corrections to maintain alignment
+        horizontal_error = self.gate_alignment_error
+        vertical_error = 0.0  # Will implement
         
-        # Only minor corrections if gate still visible
-        if self.gate_detected and abs(self.gate_alignment_error) > 0.15:
-            cmd.angular.z = -self.gate_alignment_error * 1.0
-        else:
-            cmd.angular.z = 0.0
+        # Very small corrections
+        cmd.linear.x = 0.0  # Stop forward movement
+        cmd.angular.z = -horizontal_error * 1.0  # Gentle yaw correction
+        cmd.linear.z = -vertical_error * 0.2   # Gentle heave correction
         
-        remaining = self.GATE_PASSING_DURATION - elapsed
         self.get_logger().info(
-            f'🚀 PASSING: {remaining:.1f}s remaining',
-            throttle_duration_sec=0.5
+            f'✅ ALIGNED | H_err={horizontal_error:+.3f} V_err={vertical_error:+.3f}',
+            throttle_duration_sec=2.0
         )
+        
         return cmd
     
     def gate_lost_recovery(self, cmd: Twist) -> Twist:
@@ -435,11 +445,6 @@ class GateFlareNavigator(Node):
         
         return cmd
     
-    def completed(self, cmd: Twist) -> Twist:
-        cmd.linear.x = 0.0
-        cmd.angular.z = 0.0
-        return cmd
-    
     def normalize_angle(self, angle: float) -> float:
         while angle > math.pi:
             angle -= 2 * math.pi
@@ -455,9 +460,8 @@ class GateFlareNavigator(Node):
             self.ALIGNING_GATE: 'ALIGNING_GATE',
             self.FLARE_EMERGENCY_AVOID: 'FLARE_EMERGENCY_AVOID',
             self.FLARE_CONTROLLED_AVOID: 'FLARE_CONTROLLED_AVOID',
-            self.PASSING_GATE: 'PASSING_GATE',
             self.GATE_LOST_RECOVERY: 'GATE_LOST_RECOVERY',
-            self.COMPLETED: 'COMPLETED'
+            self.ALIGNED: 'ALIGNED'
         }
         
         old_name = state_names.get(self.state, 'UNKNOWN')

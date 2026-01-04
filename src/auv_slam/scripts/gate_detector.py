@@ -2,7 +2,7 @@
 """
 Combined Gate and Flare Detector - OPTIMIZED FOR ORANGE FLUORESCENT GATES
 Detects orange/fluorescent gates AND red flares simultaneously
-High-performance multi-range detection with adaptive thresholding
+UPDATED: Single HSV range for both gate and flare detection
 """
 
 import rclpy
@@ -30,34 +30,17 @@ class CombinedDetector(Node):
         # Flare specifications
         self.flare_width_meters = 0.3
         
-        
-        # Range 1: True orange (surface/shallow water, good lighting)
-        self.orange_lower1 = np.array([5, 100, 100])   # H: 5-20, S: 100-255, V: 100-255
-        self.orange_upper1 = np.array([20, 255, 255])
-        
-        # Range 2: Yellow-orange (underwater blue-shift, medium depth)
-        self.orange_lower2 = np.array([15, 80, 80])    # H: 15-35, S: 80-255, V: 80-255
-        self.orange_upper2 = np.array([35, 255, 255])
-        
-        # Range 3: Dark orange/brown (deep water, low light, shadows)
-        self.orange_lower3 = np.array([8, 60, 50])     # H: 8-25, S: 60-255, V: 50-200
-        self.orange_upper3 = np.array([25, 255, 200])
-        
-        # Range 4: Red-orange (shallow, red light preserved)
-        self.orange_lower4 = np.array([0, 120, 120])   # H: 0-12, S: 120-255, V: 120-255
-        self.orange_upper4 = np.array([12, 255, 255])
-        
-        # Range 5: Desaturated orange (murky water, low visibility)
-        self.orange_lower5 = np.array([10, 40, 80])    # H: 10-30, S: 40-200, V: 80-255
-        self.orange_upper5 = np.array([30, 200, 255])
+        # ====================================================================
+        # GATE DETECTION - NEW SINGLE HSV RANGE
+        # ====================================================================
+        self.gate_lower = np.array([20, 98, 57])
+        self.gate_upper = np.array([47, 255, 195])
         
         # ====================================================================
-        # RED FLARE DETECTION (unchanged)
+        # FLARE DETECTION - NEW SINGLE HSV RANGE
         # ====================================================================
-        self.red_lower1 = np.array([0, 100, 50])
-        self.red_upper1 = np.array([10, 255, 255])
-        self.red_lower2 = np.array([160, 100, 50])
-        self.red_upper2 = np.array([180, 255, 255])
+        self.flare_lower = np.array([20, 55, 53])
+        self.flare_upper = np.array([138, 255, 200])
         
         # ====================================================================
         # DETECTION PARAMETERS - TUNED FOR PVC PIPE GATES UNDERWATER
@@ -132,21 +115,12 @@ class CombinedDetector(Node):
         self.status_pub = self.create_publisher(String, '/gate/status', 10)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🎯 UNDERWATER Orange PVC Pipe Gate Detector + Flare Detection')
+        self.get_logger().info('🎯 UNDERWATER Gate & Flare Detector - UPDATED HSV')
         self.get_logger().info('='*70)
-        self.get_logger().info('  Target: Bright ORANGE PVC PIPE gates (underwater)')
-        self.get_logger().info('  ORANGE Detection (5 HSV ranges for underwater):')
-        self.get_logger().info('    Range 1 (True):    H[5-20],   S[100-255], V[100-255]')
-        self.get_logger().info('    Range 2 (Yellow):  H[15-35],  S[80-255],  V[80-255]')
-        self.get_logger().info('    Range 3 (Dark):    H[8-25],   S[60-255],  V[50-200]')
-        self.get_logger().info('    Range 4 (Red):     H[0-12],   S[120-255], V[120-255]')
-        self.get_logger().info('    Range 5 (Desat):   H[10-30],  S[40-200],  V[80-255]')
-        self.get_logger().info('  + LAB color space detection (2 ranges)')
-        self.get_logger().info('  + White reflection detection (glossy PVC)')
-        self.get_logger().info('  + Adaptive underwater brightness adjustment')
-        self.get_logger().info('  RED Flare Detection: H[0-10,160-180], S[100-255], V[50-255]')
-        self.get_logger().info('  Gate Structure: PVC pipe frame (rectangular/square)')
-        self.get_logger().info('  Min Area: 400px | Aspect Ratio: 0.5-2.0 | Solidity: 0.4-0.95')
+        self.get_logger().info('GATE Detection:')
+        self.get_logger().info(f'  HSV Range: Lower={self.gate_lower.tolist()}, Upper={self.gate_upper.tolist()}')
+        self.get_logger().info('FLARE Detection:')
+        self.get_logger().info(f'  HSV Range: Lower={self.flare_lower.tolist()}, Upper={self.flare_upper.tolist()}')
         self.get_logger().info('='*70)
     
     def cam_info_callback(self, msg: CameraInfo):
@@ -159,111 +133,6 @@ class CombinedDetector(Node):
             self.cx = self.camera_matrix[0, 2]
             self.cy = self.camera_matrix[1, 2]
             self.get_logger().info(f'📷 Camera: {self.image_width}x{self.image_height}, fx={self.fx:.1f}')
-    
-    def enhance_orange_detection(self, image):
-        """
-        Advanced preprocessing for orange/fluorescent color detection
-        Uses multiple color spaces and adaptive techniques
-        """
-        h, w = image.shape[:2]
-        
-        # ========================================
-        # METHOD 1: Multi-range HSV detection
-        # ========================================
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        
-        # Apply all 5 orange ranges
-        mask1 = cv2.inRange(hsv, self.orange_lower1, self.orange_upper1)
-        mask2 = cv2.inRange(hsv, self.orange_lower2, self.orange_upper2)
-        mask3 = cv2.inRange(hsv, self.orange_lower3, self.orange_upper3)
-        mask4 = cv2.inRange(hsv, self.orange_lower4, self.orange_upper4)
-        mask5 = cv2.inRange(hsv, self.orange_lower5, self.orange_upper5)
-        
-        # Combine all orange masks
-        orange_mask_hsv = cv2.bitwise_or(mask1, mask2)
-        orange_mask_hsv = cv2.bitwise_or(orange_mask_hsv, mask3)
-        orange_mask_hsv = cv2.bitwise_or(orange_mask_hsv, mask4)
-        orange_mask_hsv = cv2.bitwise_or(orange_mask_hsv, mask5)
-        
-        # ========================================
-        # METHOD 2: LAB color space (underwater orange PVC)
-        # ========================================
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        
-        # Orange PVC underwater: moderate L, positive A (red), high B (yellow)
-        # Underwater shifts: lower L, A reduces, B increases (yellow shift)
-        # Range 1: Normal orange (good visibility)
-        lab_mask1 = cv2.inRange(lab, 
-                               np.array([60, 128, 135]),   # L > 60, A > 0, B > 7
-                               np.array([255, 180, 255]))  # Strong yellow component
-        
-        # Range 2: Dark/deep water orange (low light)
-        lab_mask2 = cv2.inRange(lab, 
-                               np.array([40, 125, 130]),   # L > 40, A slightly positive, B > 2
-                               np.array([180, 170, 255]))  # Reduced brightness
-        
-        # Combine LAB masks
-        lab_mask = cv2.bitwise_or(lab_mask1, lab_mask2)
-        
-        # ========================================
-        # METHOD 3: White reflection detection (glossy PVC pipes)
-        # ========================================
-        # Detect bright white/orange reflections on pipe surfaces
-        white_mask = cv2.inRange(hsv, 
-                                np.array([0, 0, 200]),      # Very bright, any hue, low sat
-                                np.array([180, 80, 255]))    # White/bright highlights
-        
-        # ========================================
-        # METHOD 4: Adaptive thresholding for underwater conditions
-        # ========================================
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        mean_brightness = np.mean(gray)
-        
-        # Adjust detection based on water conditions
-        if mean_brightness < 80:  # Dark/deep water
-            # Boost dark orange detection
-            kernel_adaptive = np.ones((5, 5), np.uint8)
-            mask3 = cv2.dilate(mask3, kernel_adaptive, iterations=2)  # Enhance dark orange range
-            self.get_logger().debug(f'Dark water mode: brightness={mean_brightness:.1f}', 
-                                   throttle_duration_sec=5.0)
-        elif mean_brightness > 160:  # Bright/shallow water
-            # Boost bright orange detection
-            kernel_adaptive = np.ones((3, 3), np.uint8)
-            mask1 = cv2.dilate(mask1, kernel_adaptive, iterations=1)  # Enhance bright orange
-            white_mask = cv2.dilate(white_mask, kernel_adaptive, iterations=1)  # Enhance reflections
-            self.get_logger().debug(f'Bright water mode: brightness={mean_brightness:.1f}', 
-                                   throttle_duration_sec=5.0)
-        
-        # ========================================
-        # COMBINE ALL METHODS
-        # ========================================
-        # Union of HSV, LAB, and reflection masks
-        combined_mask = cv2.bitwise_or(orange_mask_hsv, lab_mask)
-        combined_mask = cv2.bitwise_or(combined_mask, white_mask)  # Include reflections
-        
-        # ========================================
-        # ADVANCED MORPHOLOGICAL OPERATIONS FOR UNDERWATER
-        # ========================================
-        # Step 1: Close small gaps (aggressive for underwater noise)
-        kernel_close = np.ones((9, 9), np.uint8)
-        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel_close, iterations=2)
-        
-        # Step 2: Remove small noise particles
-        kernel_open = np.ones((5, 5), np.uint8)
-        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel_open, iterations=1)
-        
-        # Step 3: Dilate to connect nearby pipe segments
-        kernel_dilate = np.ones((7, 7), np.uint8)
-        combined_mask = cv2.dilate(combined_mask, kernel_dilate, iterations=1)
-        
-        # Step 4: Gaussian blur for smooth edges
-        combined_mask = cv2.GaussianBlur(combined_mask, (7, 7), 0)
-        
-        # Step 5: Final thresholding
-        _, combined_mask = cv2.threshold(combined_mask, 100, 255, cv2.THRESH_BINARY)
-        
-        return combined_mask, orange_mask_hsv, lab_mask, white_mask
     
     def analyze_gate_contour(self, contour, image_shape):
         """
@@ -378,20 +247,36 @@ class CombinedDetector(Node):
         h, w = cv_image.shape[:2]
         
         # ========================================
-        # ORANGE GATE DETECTION
+        # GATE DETECTION - SIMPLIFIED SINGLE RANGE
         # ========================================
-        orange_mask, hsv_mask, lab_mask, white_mask = self.enhance_orange_detection(cv_image)
+        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+        
+        # Apply single gate HSV range
+        gate_mask = cv2.inRange(hsv_image, self.gate_lower, self.gate_upper)
         
         # Publish combined mask for debugging
         try:
-            mask_msg = self.bridge.cv2_to_imgmsg(orange_mask, "mono8")
+            mask_msg = self.bridge.cv2_to_imgmsg(gate_mask, "mono8")
             mask_msg.header = msg.header
             self.mask_pub.publish(mask_msg)
         except CvBridgeError as e:
             self.get_logger().error(f'Mask publish error: {e}')
         
+        # Morphological operations
+        kernel_close = np.ones((9, 9), np.uint8)
+        gate_mask = cv2.morphologyEx(gate_mask, cv2.MORPH_CLOSE, kernel_close, iterations=2)
+        
+        kernel_open = np.ones((5, 5), np.uint8)
+        gate_mask = cv2.morphologyEx(gate_mask, cv2.MORPH_OPEN, kernel_open, iterations=1)
+        
+        kernel_dilate = np.ones((7, 7), np.uint8)
+        gate_mask = cv2.dilate(gate_mask, kernel_dilate, iterations=1)
+        
+        gate_mask = cv2.GaussianBlur(gate_mask, (7, 7), 0)
+        _, gate_mask = cv2.threshold(gate_mask, 100, 255, cv2.THRESH_BINARY)
+        
         # Find contours
-        gate_contours, _ = cv2.findContours(orange_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        gate_contours, _ = cv2.findContours(gate_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         gate_detected = False
         gate_alignment_error = 0.0
@@ -451,19 +336,16 @@ class CombinedDetector(Node):
                        (x, info_y + 72), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
         # ========================================
-        # RED FLARE DETECTION (unchanged)
+        # FLARE DETECTION - SIMPLIFIED SINGLE RANGE
         # ========================================
-        hsv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
-        mask1 = cv2.inRange(hsv_image, self.red_lower1, self.red_upper1)
-        mask2 = cv2.inRange(hsv_image, self.red_lower2, self.red_upper2)
-        red_mask = cv2.bitwise_or(mask1, mask2)
+        flare_mask = cv2.inRange(hsv_image, self.flare_lower, self.flare_upper)
         
         kernel = np.ones((5, 5), np.uint8)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
-        red_mask = cv2.GaussianBlur(red_mask, (5, 5), 0)
+        flare_mask = cv2.morphologyEx(flare_mask, cv2.MORPH_CLOSE, kernel)
+        flare_mask = cv2.morphologyEx(flare_mask, cv2.MORPH_OPEN, kernel)
+        flare_mask = cv2.GaussianBlur(flare_mask, (5, 5), 0)
         
-        flare_contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        flare_contours, _ = cv2.findContours(flare_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         flare_detected = False
         flare_direction = 0.0
@@ -585,7 +467,7 @@ class CombinedDetector(Node):
         if self.frame_count % 30 == 0:
             if gate_detected:
                 self.get_logger().info(
-                    f'🎯 PVC GATE: {gate_distance:.1f}m | Score:{best_gate_score:.0f} | '
+                    f'🎯 GATE: {gate_distance:.1f}m | Score:{best_gate_score:.0f} | '
                     f'AR:{best_gate["aspect_ratio"]:.2f} Sol:{best_gate["solidity"]:.2f} '
                     f'Ext:{best_gate["extent"]:.2f} | Flare:{flare_distance:.1f}m',
                     throttle_duration_sec=0.9
