@@ -95,6 +95,18 @@ def generate_launch_description():
         default_value='true',
         description='Show debug image with gate bounding box (true/false)'
     )
+
+    DeclareLaunchArgument(
+        'image_topic',
+        default_value='/image_raw',
+        description='ROS image topic for GStreamer bridge'
+    ),
+    DeclareLaunchArgument(
+        'bitrate',
+        default_value='2000',
+        description='H264 encoder bitrate'
+    ),
+
     
     return LaunchDescription([
         # ====================================================================
@@ -136,7 +148,9 @@ def generate_launch_description():
                 ExecuteProcess(
                     cmd=[
                         '/bin/bash',
-                        '/home/radxa-x4/Documents/gscam_ws/config/init_ros_gst_bridge.sh'
+                        '/home/radxa-x4/Documents/gscam_ws/config/init_ros_gst_bridge.sh',
+                        LaunchConfiguration('image_topic'),
+                        LaunchConfiguration('bitrate')
                     ],
                     output='screen'
                 )

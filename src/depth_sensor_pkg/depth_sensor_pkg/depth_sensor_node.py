@@ -77,7 +77,7 @@ class DepthSensorNode(Node):
                             
                             # Create and publish message
                             msg = Float32()
-                            msg.data = depth_value
+                            msg.data = depth_value+0.19
                             self.depth_publisher.publish(msg)
                             
                             self.get_logger().debug(f'Published depth: {depth_value}')

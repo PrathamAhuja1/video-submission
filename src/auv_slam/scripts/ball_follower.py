@@ -21,20 +21,36 @@ class BallFollower(Node):
         
         self.state = self.STABILIZING
         
-        self.TARGET_DEPTH = 0.6
-        self.DEPTH_TOLERANCE = 0.1
-        
-        self.MIN_FOLLOW_DISTANCE = 0.3
-        self.MAX_FOLLOW_DISTANCE = 5.0
-        
-        self.SEARCH_SPEED = 0.7
-        self.FOLLOW_SPEED_MIN = 0.25
-        self.FOLLOW_SPEED_MAX = 0.95
-        
-        self.SEARCH_YAW_RATE = 0.5
-        self.YAW_GAIN_FAR = 3.5
-        self.YAW_GAIN_CLOSE = 2.5
-        self.YAW_TRANSITION_DISTANCE = 1.0
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('target_depth', 0.6),
+                ('depth_tolerance', 0.1),
+                ('min_follow_distance', 0.3),
+                ('max_follow_distance', 5.0),
+                ('search_speed', 0.7),
+                ('follow_speed_min', 0.25),
+                ('follow_speed_max', 0.95),
+                ('search_yaw_rate', 0.5),
+                ('yaw_gain_far', 3.5),
+                ('yaw_gain_close', 2.5),
+                ('yaw_transition_distance', 1.0),
+            ]
+        )
+
+        # Read parameters
+        self.TARGET_DEPTH = self.get_parameter('target_depth').value
+        self.DEPTH_TOLERANCE = self.get_parameter('depth_tolerance').value
+        self.MIN_FOLLOW_DISTANCE = self.get_parameter('min_follow_distance').value
+        self.MAX_FOLLOW_DISTANCE = self.get_parameter('max_follow_distance').value
+        self.SEARCH_SPEED = self.get_parameter('search_speed').value
+        self.FOLLOW_SPEED_MIN = self.get_parameter('follow_speed_min').value
+        self.FOLLOW_SPEED_MAX = self.get_parameter('follow_speed_max').value
+        self.SEARCH_YAW_RATE = self.get_parameter('search_yaw_rate').value
+        self.YAW_GAIN_FAR = self.get_parameter('yaw_gain_far').value
+        self.YAW_GAIN_CLOSE = self.get_parameter('yaw_gain_close').value
+        self.YAW_TRANSITION_DISTANCE = self.get_parameter('yaw_transition_distance').value
+
         
         self.ALIGNMENT_THRESHOLD = 0.1
         
@@ -135,7 +151,7 @@ class BallFollower(Node):
         cmd.linear.x = self.SEARCH_SPEED
         
         elapsed = time.time() - self.state_start_time
-        sweep_phase = (elapsed % 10.0) / 10.0
+        sweep_phase = (elapsed % 4.0) / 4.0
         
         if sweep_phase < 0.5:
             cmd.angular.z = self.SEARCH_YAW_RATE
