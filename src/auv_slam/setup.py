@@ -2,7 +2,7 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import sys
 import os
-import glob
+from glob import glob
 
 try:
     import pybind11
