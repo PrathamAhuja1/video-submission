@@ -41,6 +41,7 @@ install(PROGRAMS
   scripts/ros_gst_udp.py
   scripts/test_2.py
   scripts/depth_maintain.py
+  scripts/qr_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
