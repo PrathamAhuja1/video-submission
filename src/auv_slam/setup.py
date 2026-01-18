@@ -64,6 +64,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz'))
     ] + ([('share/' + package_name + '/config', config_files)] if config_files else []),
     install_requires=['setuptools'],
     zip_safe=False,
