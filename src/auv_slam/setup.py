@@ -49,6 +49,12 @@ if PYBIND11_AVAILABLE:
         )
     ]
 
+# Find all config files
+config_files = []
+if os.path.exists('config'):
+    config_files = glob('config/*')
+    print(f"Found config files: {config_files}")
+
 setup(
     name=package_name,
     version='1.0.0',
@@ -58,8 +64,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
-        ('share/' + package_name + '/config', glob('config/*.sdp')), 
-    ],
+    ] + ([('share/' + package_name + '/config', config_files)] if config_files else []),
     install_requires=['setuptools'],
     zip_safe=False,
     maintainer='Your Name',
