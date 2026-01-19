@@ -48,7 +48,7 @@ class EnhancedQRDetector(Node):
                         sr_caffemodel
                     )
                     self.use_wechat = True
-                    self.get_logger().info('✅ Using WeChat QR detector with super-resolution')
+                    self.get_logger().info('Using WeChat QR detector with super-resolution')
                     self.get_logger().info(f'   Model path: {model_path}')
                 else:
                     missing = [f for f in [detect_prototxt, detect_caffemodel, sr_prototxt, sr_caffemodel] 
@@ -62,9 +62,8 @@ class EnhancedQRDetector(Node):
         
         if not self.use_wechat:
             self.detector = cv2.QRCodeDetector()
-            self.get_logger().info('⚠️  Using standard OpenCV QR detector')
-            self.get_logger().info('   For better far-distance detection, install WeChat models')
-            self.get_logger().info('   Download from: https://github.com/WeChatCV/opencv_3rdparty/tree/wechat_qrcode')
+            self.get_logger().info('Using standard OpenCV QR detector')
+
         
         self.detected_qrs = {}
         self.qr_counter = 0
@@ -83,7 +82,7 @@ class EnhancedQRDetector(Node):
         )
         
         self.get_logger().info('='*70)
-        self.get_logger().info('🔍 QR Detector Node Started')
+        self.get_logger().info('Detector Node Started')
         self.get_logger().info(f'   Detector Type: {"WeChat (Super-Resolution)" if self.use_wechat else "OpenCV Standard"}')
         self.get_logger().info('   Subscribing to: /image_raw')
         self.get_logger().info('   Publishing to:')
