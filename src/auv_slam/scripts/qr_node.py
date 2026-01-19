@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage
@@ -7,161 +6,232 @@ from std_msgs.msg import String
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-from pyzbar.pyzbar import decode
-import threading
-import queue
-import time
+import os
+from ament_index_python.packages import get_package_share_directory
 
-class QRDetector(Node):
+
+class EnhancedQRDetector(Node):
     def __init__(self):
         super().__init__('qr_detector_node')
-
-        # Publishers
+        
+        self.declare_parameter('use_wechat', True)
+        self.declare_parameter('model_path', '')
+        
+        use_wechat = self.get_parameter('use_wechat').value
+        model_path = self.get_parameter('model_path').value
+        
+        self.bridge = CvBridge()
+        
+        if not model_path:
+            try:
+                package_share = get_package_share_directory('auv_slam')
+                model_path = os.path.join(package_share, 'config')
+            except Exception as e:
+                self.get_logger().warn(f'Could not find package share directory: {e}')
+                model_path = os.path.join(os.path.dirname(__file__), '..', 'config')
+        
+        self.detector = None
+        self.use_wechat = False
+        
+        if use_wechat:
+            try:
+                detect_prototxt = os.path.join(model_path, 'detect.prototxt')
+                detect_caffemodel = os.path.join(model_path, 'detect.caffemodel')
+                sr_prototxt = os.path.join(model_path, 'sr.prototxt')
+                sr_caffemodel = os.path.join(model_path, 'sr.caffemodel')
+                
+                if all(os.path.exists(f) for f in [detect_prototxt, detect_caffemodel, sr_prototxt, sr_caffemodel]):
+                    self.detector = cv2.wechat_qrcode_WeChatQRCode(
+                        detect_prototxt,
+                        detect_caffemodel,
+                        sr_prototxt,
+                        sr_caffemodel
+                    )
+                    self.use_wechat = True
+                    self.get_logger().info('✅ Using WeChat QR detector with super-resolution')
+                    self.get_logger().info(f'   Model path: {model_path}')
+                else:
+                    missing = [f for f in [detect_prototxt, detect_caffemodel, sr_prototxt, sr_caffemodel] 
+                              if not os.path.exists(f)]
+                    self.get_logger().warn(f'WeChat model files not found: {missing}')
+                    self.get_logger().warn('Falling back to standard OpenCV detector')
+                    
+            except Exception as e:
+                self.get_logger().warn(f'Failed to initialize WeChat detector: {e}')
+                self.get_logger().warn('Falling back to standard OpenCV detector')
+        
+        if not self.use_wechat:
+            self.detector = cv2.QRCodeDetector()
+            self.get_logger().info('⚠️  Using standard OpenCV QR detector')
+            self.get_logger().info('   For better far-distance detection, install WeChat models')
+            self.get_logger().info('   Download from: https://github.com/WeChatCV/opencv_3rdparty/tree/wechat_qrcode')
+        
+        self.detected_qrs = {}
+        self.qr_counter = 0
+        
         self.image_pub = self.create_publisher(Image, '/qr/debug_image', 10)
-        self.image_compressed_pub = self.create_publisher(CompressedImage, '/qr/debug_image_compressed', 10)
+        self.image_compressed_pub = self.create_publisher(
+            CompressedImage, '/qr/debug_image_compressed', 10
+        )
         self.text_pub = self.create_publisher(String, '/qr/text', 10)
-
-        # Subscriber
+        
         self.subscription = self.create_subscription(
             Image,
             '/image_raw',
             self.image_callback,
             10
         )
+        
+        self.get_logger().info('='*70)
+        self.get_logger().info('🔍 QR Detector Node Started')
+        self.get_logger().info(f'   Detector Type: {"WeChat (Super-Resolution)" if self.use_wechat else "OpenCV Standard"}')
+        self.get_logger().info('   Subscribing to: /image_raw')
+        self.get_logger().info('   Publishing to:')
+        self.get_logger().info('     - /qr/debug_image')
+        self.get_logger().info('     - /qr/debug_image_compressed')
+        self.get_logger().info('     - /qr/text')
+        self.get_logger().info('='*70)
 
-        self.bridge = CvBridge()
-
-        # Queue to hand off frames to the worker thread.
-        # Keep maxsize small to avoid memory growth and latency.
-        self.frame_queue = queue.Queue(maxsize=4)
-
-        # Worker thread control
-        self.running = True
-        self.worker_thread = threading.Thread(target=self._decode_worker, daemon=True)
-        self.worker_thread.start()
-
-        self.get_logger().info("QR Detector Node initialized. Awaiting frames on /image_raw...")
-
-    def image_callback(self, msg: Image):
-        """Quickly convert incoming ROS Image to cv2 frame and enqueue it for decoding.
-        If the queue is full, drop the frame to avoid blocking the callback."""
+    def image_callback(self, msg):
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except Exception as e:
-            self.get_logger().error(f"Failed to convert image: {e}")
+            self.get_logger().error(f'Bridge Error: {e}')
             return
 
-        # Try to enqueue without blocking. Drop frame if queue is full.
+        display_frame = frame.copy()
+        current_qr_ids = set()
+        
+        if self.use_wechat:
+            data, points = self.detector.detectAndDecode(frame)
+            
+            if len(data) > 0:
+                for i, qr_data in enumerate(data):
+                    if qr_data:
+                        pts = points[i].astype(int)
+                        
+                        center_x = int(pts[:, 0].mean())
+                        center_y = int(pts[:, 1].mean())
+                        
+                        matched = False
+                        for qr_id, qr_info in self.detected_qrs.items():
+                            prev_x, prev_y = qr_info['center']
+                            if abs(center_x - prev_x) < 50 and abs(center_y - prev_y) < 50:
+                                self.detected_qrs[qr_id]['center'] = (center_x, center_y)
+                                self.detected_qrs[qr_id]['points'] = pts
+                                self.detected_qrs[qr_id]['data'] = qr_data
+                                current_qr_ids.add(qr_id)
+                                matched = True
+                                break
+                        
+                        if not matched:
+                            self.qr_counter += 1
+                            self.detected_qrs[self.qr_counter] = {
+                                'data': qr_data,
+                                'center': (center_x, center_y),
+                                'points': pts
+                            }
+                            current_qr_ids.add(self.qr_counter)
+                            self.get_logger().info(f'QR {self.qr_counter} detected: {qr_data}')
+                            
+                            text_msg = String()
+                            text_msg.data = qr_data
+                            self.text_pub.publish(text_msg)
+        else:
+            retval, data, points, _ = self.detector.detectAndDecodeMulti(frame)
+            
+            if retval and points is not None:
+                for i, qr_data in enumerate(data):
+                    if qr_data:
+                        pts = points[i].astype(int)
+                        
+                        center_x = int(pts[:, 0].mean())
+                        center_y = int(pts[:, 1].mean())
+                        
+                        matched = False
+                        for qr_id, qr_info in self.detected_qrs.items():
+                            prev_x, prev_y = qr_info['center']
+                            if abs(center_x - prev_x) < 50 and abs(center_y - prev_y) < 50:
+                                self.detected_qrs[qr_id]['center'] = (center_x, center_y)
+                                self.detected_qrs[qr_id]['points'] = pts
+                                self.detected_qrs[qr_id]['data'] = qr_data
+                                current_qr_ids.add(qr_id)
+                                matched = True
+                                break
+                        
+                        if not matched:
+                            self.qr_counter += 1
+                            self.detected_qrs[self.qr_counter] = {
+                                'data': qr_data,
+                                'center': (center_x, center_y),
+                                'points': pts
+                            }
+                            current_qr_ids.add(self.qr_counter)
+                            self.get_logger().info(f'QR {self.qr_counter} detected: {qr_data}')
+                            
+                            text_msg = String()
+                            text_msg.data = qr_data
+                            self.text_pub.publish(text_msg)
+        
+        stale_qrs = set(self.detected_qrs.keys()) - current_qr_ids
+        for qr_id in stale_qrs:
+            del self.detected_qrs[qr_id]
+        
+        for qr_id, qr_info in self.detected_qrs.items():
+            pts = qr_info['points']
+            qr_data = qr_info['data']
+            
+            for j in range(len(pts)):
+                cv2.line(
+                    display_frame,
+                    tuple(pts[j]),
+                    tuple(pts[(j + 1) % len(pts)]),
+                    (0, 255, 0), 2
+                )
+            
+            x, y = pts[0]
+            cv2.putText(
+                display_frame, qr_data, (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2
+            )
+        
+        detector_type = "WeChat SR" if self.use_wechat else "OpenCV"
+        cv2.putText(
+            display_frame,
+            f'{detector_type} | QR Codes: {len(self.detected_qrs)}',
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2
+        )
+        
         try:
-            self.frame_queue.put_nowait(frame)
-        except queue.Full:
-            # Throttle logging to avoid spamming; it's okay to occasionally drop frames.
-            # Use debug level to reduce log noise during normal operation.
-            self.get_logger().debug("Frame queue full — dropping frame to keep callback fast.")
-
-    def _decode_worker(self):
-        """Worker thread: pull frames from the queue, decode QR codes, annotate and publish."""
-        while self.running:
-            try:
-                frame = self.frame_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-
-            start_time = self.get_clock().now()
-            try:
-                qr_codes = decode(frame)
-            except Exception as e:
-                self.get_logger().error(f"Error during decode: {e}")
-                qr_codes = []
-            end_time = self.get_clock().now()
-            duration_ms = (end_time - start_time).nanoseconds / 1e6
-
-            if not qr_codes:
-                # Reduced noise: debug-level periodic message
-                self.get_logger().debug(f"Scan complete ({duration_ms:.2f}ms): No QR codes found.")
-            else:
-                self.get_logger().info(f"Found {len(qr_codes)} QR code(s) in {duration_ms:.2f}ms")
-
-            # Annotate and publish results
-            annotated = frame.copy()
-            for obj in qr_codes:
-                try:
-                    qr_data = obj.data.decode("utf-8")
-                except Exception:
-                    qr_data = ""
-
-                if qr_data:
-                    # Publish text
-                    try:
-                        self.text_pub.publish(String(data=qr_data))
-                    except Exception as e:
-                        self.get_logger().error(f"Failed to publish QR text: {e}")
-
-                    self.get_logger().info(f"Captured Data: '{qr_data}'")
-
-                    # Draw polygon/bounding box if available
-                    points = obj.polygon
-                    if points and len(points) >= 3:
-                        pts = np.array([[p.x, p.y] for p in points], np.int32)
-                        pts = pts.reshape((-1, 1, 2))
-                        cv2.polylines(annotated, [pts], True, (0, 255, 0), 3)
-
-                    # Draw text label near bounding rect
-                    (x, y, w, h) = obj.rect
-                    # clamp coordinates
-                    x = max(0, x)
-                    y = max(0, y)
-                    cv2.putText(annotated, qr_data, (x, max(10, y - 10)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-                else:
-                    self.get_logger().warning("Detected QR code but could not extract data.")
-
-            # Publish annotated image
-            try:
-                self.image_pub.publish(self.bridge.cv2_to_imgmsg(annotated, encoding="bgr8"))
-            except Exception as e:
-                self.get_logger().error(f"Failed to publish debug image: {e}")
-
-            # Publish compressed image (useful for lower-bandwidth viewers)
-            try:
-                compressed_msg = self.bridge.cv2_to_compressed_imgmsg(annotated)
+            debug_msg = self.bridge.cv2_to_imgmsg(display_frame, encoding='bgr8')
+            debug_msg.header = msg.header
+            self.image_pub.publish(debug_msg)
+            
+            success, buffer = cv2.imencode('.jpg', display_frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            if success:
+                compressed_msg = CompressedImage()
+                compressed_msg.header = msg.header
+                compressed_msg.format = 'jpeg'
+                compressed_msg.data = buffer.tobytes()
                 self.image_compressed_pub.publish(compressed_msg)
-            except Exception as e:
-                self.get_logger().error(f"Compression/publish failed: {e}")
+                
+        except Exception as e:
+            self.get_logger().error(f'Publishing error: {e}')
 
-            # Mark task done for queue bookkeeping
-            try:
-                self.frame_queue.task_done()
-            except Exception:
-                pass
-
-        self.get_logger().info("Decode worker thread exiting.")
-
-    def shutdown(self):
-        """Signal the worker thread to stop and wait for it to finish."""
-        self.get_logger().info("Shutting down QR Detector worker thread...")
-        self.running = False
-        # Wait briefly for thread to exit
-        self.worker_thread.join(timeout=1.0)
-        # Optionally clear the queue
-        with self.frame_queue.mutex:
-            self.frame_queue.queue.clear()
 
 def main(args=None):
     rclpy.init(args=args)
-    node = QRDetector()
+    node = EnhancedQRDetector()
+    
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info("Keyboard interrupt received — shutting down.")
+        pass
     finally:
-        # Ensure worker thread stops before destroying node
-        try:
-            node.shutdown()
-        except Exception:
-            pass
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
